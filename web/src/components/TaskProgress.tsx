@@ -12,16 +12,16 @@ interface TaskProgressProps {
 }
 
 interface ProgressEvent {
-  percent: number
+  progress: number
   message: string
-  level?: 'info' | 'error' | 'success'
+  status?: string
 }
 
 export default function TaskProgress({ taskId, open, onClose }: TaskProgressProps) {
   const [percent, setPercent] = useState(0)
   const [logs, setLogs] = useState<ProgressEvent[]>([])
   const token = useAuthStore((s) => s.token)
-  const esRef = useRef<EventSource | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
 
@@ -31,27 +31,72 @@ export default function TaskProgress({ taskId, open, onClose }: TaskProgressProp
     setPercent(0)
     setLogs([])
 
-    const url = `/api/tasks/${taskId}/progress${token ? `?token=${encodeURIComponent(token)}` : ''}`
-    const es = new EventSource(url)
-    esRef.current = es
+    const controller = new AbortController()
+    abortRef.current = controller
 
-    es.onmessage = (e) => {
+    void (async () => {
       try {
-        const data: ProgressEvent = JSON.parse(e.data)
-        setPercent(data.percent ?? 0)
-        setLogs((prev) => [...prev, data])
-      } catch {
-        // ignore parse errors
-      }
-    }
+        const response = await fetch(`/api/tasks/${taskId}/progress`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          signal: controller.signal,
+        })
 
-    es.onerror = () => {
-      es.close()
-    }
+        if (!response.ok || !response.body) {
+          return
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) {
+            break
+          }
+
+          buffer += decoder.decode(value, { stream: true })
+
+          let separatorIndex = buffer.indexOf('\n\n')
+          while (separatorIndex >= 0) {
+            const rawEvent = buffer.slice(0, separatorIndex)
+            buffer = buffer.slice(separatorIndex + 2)
+
+            const lines = rawEvent.split(/\r?\n/)
+            let eventName = 'message'
+            const dataLines: string[] = []
+
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                eventName = line.slice(6).trim()
+                continue
+              }
+              if (line.startsWith('data:')) {
+                dataLines.push(line.slice(5).trim())
+              }
+            }
+
+            if (eventName === 'progress' && dataLines.length > 0) {
+              try {
+                const data = JSON.parse(dataLines.join('\n')) as ProgressEvent
+                setPercent(data.progress ?? 0)
+                setLogs((prev) => [...prev, data])
+              } catch {
+                // ignore parse errors
+              }
+            }
+
+            separatorIndex = buffer.indexOf('\n\n')
+          }
+        }
+      } catch {
+        // request aborted or stream interrupted
+      }
+    })()
 
     return () => {
-      es.close()
-      esRef.current = null
+      controller.abort()
+      abortRef.current = null
     }
   }, [open, taskId, token])
 
@@ -60,8 +105,8 @@ export default function TaskProgress({ taskId, open, onClose }: TaskProgressProp
   }, [logs])
 
   function handleClose() {
-    esRef.current?.close()
-    esRef.current = null
+    abortRef.current?.abort()
+    abortRef.current = null
     onClose()
   }
 
@@ -92,7 +137,7 @@ export default function TaskProgress({ taskId, open, onClose }: TaskProgressProp
           renderItem={(item, idx) => (
             <List.Item key={idx} style={{ padding: '2px 0', border: 'none' }}>
               <Badge
-                color={item.level === 'error' ? 'red' : item.level === 'success' ? 'green' : 'blue'}
+                color={item.status === 'error' ? 'red' : item.status === 'completed' ? 'green' : 'blue'}
                 text={<Text style={{ fontSize: 12 }}>{item.message}</Text>}
               />
             </List.Item>
