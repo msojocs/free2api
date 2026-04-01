@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.0",
-    "antd": "^5.0.0",
-    "axios": "^1.6.0",
+    "antd": "^6.3.5",
+    "axios": "1.13.0",
     "dayjs": "^1.11.20",
     "i18next": "^26.0.3",
     "i18next-browser-languagedetector": "^8.2.1",

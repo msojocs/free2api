@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  App as AntdApp,
   Table,
   Button,
   Modal,
@@ -8,12 +9,11 @@ import {
   Space,
   Typography,
   Popconfirm,
-  message,
   Tag,
   Select,
+  type TableProps,
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
 import { useTranslation } from 'react-i18next'
 import { getProxies, createProxy, deleteProxy, testProxy, type Proxy } from '../api/proxies'
 
@@ -29,6 +29,7 @@ export default function ProxyManager() {
   const [testingId, setTestingId] = useState<number | null>(null)
   const [form] = Form.useForm()
   const { t } = useTranslation()
+  const { message } = AntdApp.useApp()
 
   async function fetchProxies() {
     setLoading(true)
@@ -75,7 +76,9 @@ export default function ProxyManager() {
   async function handleTest(id: number) {
     setTestingId(id)
     try {
+      console.info('Testing proxy', id)
       await testProxy(id)
+      console.info('Proxy is reachable')
       message.success(t('proxies.reachable'))
     } catch {
       message.error(t('proxies.testFailed'))
@@ -84,7 +87,7 @@ export default function ProxyManager() {
     }
   }
 
-  const columns: ColumnsType<Proxy> = [
+  const columns: TableProps<Proxy>['columns'] = [
     { title: t('proxies.host'), dataIndex: 'host', key: 'host' },
     { title: t('proxies.port'), dataIndex: 'port', key: 'port' },
     { title: t('proxies.protocol'), dataIndex: 'protocol', key: 'protocol' },

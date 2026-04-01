@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
 import { useTranslation } from 'react-i18next'
@@ -24,27 +24,29 @@ export default function App() {
 
   return (
     <ConfigProvider locale={antdLocale}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <AppLayout />
-              </PrivateRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tasks" element={<TaskList />} />
-            <Route path="accounts" element={<AccountList />} />
-            <Route path="proxies" element={<ProxyManager />} />
-            <Route path="temp-mail-providers" element={<TempMailProviderManager />} />
-            <Route path="push-templates" element={<PushTemplateManager />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AntdApp>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <AppLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="tasks" element={<TaskList />} />
+              <Route path="accounts" element={<AccountList />} />
+              <Route path="proxies" element={<ProxyManager />} />
+              <Route path="temp-mail-providers" element={<TempMailProviderManager />} />
+              <Route path="push-templates" element={<PushTemplateManager />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   )
 }
