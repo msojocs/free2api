@@ -19,26 +19,23 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // Grok (x.ai) registration.
 // Reference: https://github.com/lxf746/any-auto-register/blob/main/platforms/grok/core.py
 const (
-	grokAccountsURL       = "https://accounts.x.ai"
-	grokTurnstileSiteKey  = "0x4AAAAAAAhr9JGVDZbrZOo0"
-	grokNextAction        = "7f69646bb11542f4cad728680077c67a09624b94e0"
-	grokUA                = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+	grokAccountsURL      = "https://accounts.x.ai"
+	grokTurnstileSiteKey = "0x4AAAAAAAhr9JGVDZbrZOo0"
+	grokNextAction       = "7f69646bb11542f4cad728680077c67a09624b94e0"
+	grokUA               = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
 // GrokExecutor registers new Grok (x.ai) accounts.
 // It uses gRPC-web for email OTP and standard JSON for signup with Turnstile.
-type GrokExecutor struct {
-	db *gorm.DB
-}
+type GrokExecutor struct{}
 
-func NewGrokExecutor(db *gorm.DB) *GrokExecutor {
-	return &GrokExecutor{db: db}
+func NewGrokExecutor() *GrokExecutor {
+	return &GrokExecutor{}
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +247,7 @@ func randIntBig(n int) int {
 //
 //	proxy, mail_provider, mail_api_url, mail_admin_token, mail_domain
 //	captcha_provider, captcha_key  (Turnstile required for signup)
-func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting Grok (x.ai) account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
@@ -265,14 +262,14 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 10, "Getting temporary email…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 18, fmt.Sprintf("Got email: %s", email), "running")
@@ -285,13 +282,13 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 		solver, err := captcha.New(captchaProvider, captchaKey)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("Captcha provider error: %v", err), "failed")
-			return err
+			return nil, err
 		}
 		sendProgress(publish, taskID, 20, "Solving Turnstile CAPTCHA…", "running")
 		captchaToken, err = solver.SolveTurnstile(ctx, "https://accounts.x.ai/sign-up", grokTurnstileSiteKey)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("CAPTCHA failed: %v", err), "failed")
-			return err
+			return nil, err
 		}
 		sendProgress(publish, taskID, 28, "CAPTCHA solved", "running")
 	}
@@ -299,14 +296,14 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	sess, err := newGrokSession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Session init error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – send OTP
 	sendProgress(publish, taskID, 32, "Step 1/4: Sending OTP email…", "running")
 	if err := sess.step1SendOTP(ctx, email); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 1 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Wait for OTP
@@ -314,7 +311,7 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	otp, err := mp.WaitForCode(ctx, mailAccount, "", 120)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	sendProgress(publish, taskID, 52, fmt.Sprintf("Got OTP: %s", otp), "running")
 
@@ -330,7 +327,7 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	signupBody, err := sess.step3Signup(ctx, email, password, otp, givenName, familyName, captchaToken)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 4 – set cookies
@@ -344,7 +341,7 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extraMap := map[string]string{
 		"sso":         sso,
@@ -361,10 +358,6 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 		TaskBatchID: taskID,
 		Extra:       string(extraJSON),
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
 	msg := fmt.Sprintf("✓ Grok account registered: %s", email)
 	if sso != "" {
@@ -372,8 +365,11 @@ func (e *GrokExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	} else {
 		msg += " (no sso cookie — Cloudflare may have blocked the request)"
 	}
-	sendProgress(publish, taskID, 100, msg, "completed")
-	return nil
+
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: msg,
+	}, nil
 }
 
 func min(a, b int) int {

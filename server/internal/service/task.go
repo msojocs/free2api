@@ -124,8 +124,6 @@ func (s *TaskService) dispatchJobs(task model.TaskBatch) {
 		// and merge the provider's settings into the job config so executors
 		// receive mail_provider + mail_* keys transparently.
 		cfg = s.resolveMailProviderConfig(cfg)
-		db := s.db
-
 		wg.Add(1)
 		s.pool.Submit(core.Job{
 			ID: uint(jobID),
@@ -139,15 +137,35 @@ func (s *TaskService) dispatchJobs(task model.TaskBatch) {
 				log.Printf("Job type: %s\n", taskType)
 				switch taskType {
 				case "chatgpt":
-					exec = executor.NewChatGPTExecutor(db)
+					exec = executor.NewChatGPTExecutor()
 				case "cursor":
-					exec = executor.NewCursorExecutor(db)
+					exec = executor.NewCursorExecutor()
 				default:
 					log.Printf("Unknown job type: %s\n", taskType)
 					return
 				}
 				log.Printf("Starting job %d for task %d\n", jobID, taskID)
-				err := exec.Execute(ctx, taskID, cfg, publishWithLog)
+				result, err := exec.Execute(ctx, taskID, cfg, publishWithLog)
+				if err == nil {
+					if result == nil || result.Account == nil {
+						err = errors.New("executor returned no account to persist")
+					} else if dbErr := s.db.Create(result.Account).Error; dbErr != nil {
+						publishWithLog(core.ProgressUpdate{
+							TaskID:   taskID,
+							Progress: 100,
+							Message:  fmt.Sprintf("Save account failed: %v", dbErr),
+							Status:   "failed",
+						})
+						err = dbErr
+					} else if result.SuccessMessage != "" {
+						publishWithLog(core.ProgressUpdate{
+							TaskID:   taskID,
+							Progress: 100,
+							Message:  result.SuccessMessage,
+							Status:   "completed",
+						})
+					}
+				}
 
 				if err != nil {
 					s.repo.UpdateFields(taskID, map[string]interface{}{

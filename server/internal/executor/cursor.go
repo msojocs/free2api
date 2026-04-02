@@ -20,7 +20,6 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // Cursor registration endpoints and Next.js Server-Action hashes.
@@ -41,12 +40,10 @@ const (
 )
 
 // CursorExecutor registers new Cursor.sh accounts using the protocol (HTTP) flow.
-type CursorExecutor struct {
-	db *gorm.DB
-}
+type CursorExecutor struct{}
 
-func NewCursorExecutor(db *gorm.DB) *CursorExecutor {
-	return &CursorExecutor{db: db}
+func NewCursorExecutor() *CursorExecutor {
+	return &CursorExecutor{}
 }
 
 // cursorSession wraps two http.Clients that share a cookie jar:
@@ -89,13 +86,13 @@ func newCursorSession(proxyURL string) (*cursorSession, error) {
 // actionHeaders returns common headers for Next.js Server-Action requests.
 func actionHeaders(nextAction, referer, contentType string) map[string]string {
 	return map[string]string{
-		"User-Agent":               cursorUA,
-		"Accept":                   "text/x-component",
-		"Content-Type":             contentType,
-		"Origin":                   cursorAuthBase,
-		"Referer":                  referer,
-		"Next-Action":              nextAction,
-		"Next-Router-State-Tree":   nextRouterState,
+		"User-Agent":             cursorUA,
+		"Accept":                 "text/x-component",
+		"Content-Type":           contentType,
+		"Origin":                 cursorAuthBase,
+		"Referer":                referer,
+		"Next-Action":            nextAction,
+		"Next-Router-State-Tree": nextRouterState,
 	}
 }
 
@@ -286,7 +283,7 @@ func buildCursorState() (string, error) {
 //	mail_domain      – email domain (cfworker only)
 //	captcha_provider – "yescaptcha" | "2captcha" (optional but recommended)
 //	captcha_key      – API key for the captcha provider
-func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting Cursor account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
@@ -302,14 +299,14 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 12, "Getting temporary email address…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 18, fmt.Sprintf("Got email: %s", email), "running")
@@ -322,7 +319,7 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		captchaSolver, err = captcha.New(captchaProvider, captchaKey)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("Captcha provider error: %v", err), "failed")
-			return err
+			return nil, err
 		}
 		sendProgress(publish, taskID, 20, fmt.Sprintf("Captcha provider: %s", captchaProvider), "running")
 	}
@@ -331,7 +328,7 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	sess, err := newCursorSession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to init HTTP session: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – initialise session
@@ -339,14 +336,14 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	stateEncoded, err := sess.step1GetSession(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 1 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 2 – submit email
 	sendProgress(publish, taskID, 35, "Step 2/5: Submitting email…", "running")
 	if err := sess.step2SubmitEmail(ctx, email, stateEncoded); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 2 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 3 – submit password (+ Turnstile if solver configured)
@@ -357,14 +354,14 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		captchaToken, err = captchaSolver.SolveTurnstile(ctx, cursorAuthBase, cursorTurnstileSiteKey)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("CAPTCHA failed: %v", err), "failed")
-			return err
+			return nil, err
 		}
 		sendProgress(publish, taskID, 48, "CAPTCHA solved", "running")
 	}
 	sendProgress(publish, taskID, 50, "Step 3/5: Submitting password…", "running")
 	if err := sess.step3SubmitPassword(ctx, email, password, stateEncoded, captchaToken); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 4 – wait for OTP then submit it
@@ -372,13 +369,13 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	otp, err := mp.WaitForCode(ctx, mailAccount, "", 120)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	sendProgress(publish, taskID, 68, fmt.Sprintf("Got OTP: %s – submitting…", otp), "running")
 	authCode, err := sess.step4SubmitOTP(ctx, email, otp, stateEncoded)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 4 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 5 – exchange auth code for session token
@@ -386,14 +383,14 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	token, err := sess.step5GetToken(ctx, authCode, stateEncoded)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 5 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Persist account
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extra := fmt.Sprintf(`{"token":"%s"}`, strings.ReplaceAll(token, `"`, `\"`))
 	acct := &model.Account{
@@ -404,12 +401,9 @@ func (e *CursorExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		TaskBatchID: taskID,
 		Extra:       extra,
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
-	sendProgress(publish, taskID, 100, fmt.Sprintf("✓ Cursor account registered: %s", email), "completed")
-	return nil
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: fmt.Sprintf("✓ Cursor account registered: %s", email),
+	}, nil
 }
-

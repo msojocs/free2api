@@ -18,7 +18,6 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // OpenAI / ChatGPT registration endpoints.
@@ -34,12 +33,10 @@ const (
 )
 
 // ChatGPTExecutor registers new OpenAI / ChatGPT accounts using the HTTP protocol flow.
-type ChatGPTExecutor struct {
-	db *gorm.DB
-}
+type ChatGPTExecutor struct{}
 
-func NewChatGPTExecutor(db *gorm.DB) *ChatGPTExecutor {
-	return &ChatGPTExecutor{db: db}
+func NewChatGPTExecutor() *ChatGPTExecutor {
+	return &ChatGPTExecutor{}
 }
 
 // openAISession holds the HTTP clients and helpers for the auth0 sign-up flow.
@@ -147,13 +144,13 @@ func (s *openAISession) step2SignUpWithEmail(ctx context.Context, email, state s
 	reqURL := fmt.Sprintf("%s/u/signup/identifier?state=%s", openAIAuthBase, url.QueryEscape(state))
 
 	formData := url.Values{
-		"state":                {state},
-		"email":                {email},
-		"js-available":         {"true"},
-		"webauthn-available":   {"true"},
-		"is-brave":             {"false"},
+		"state":                       {state},
+		"email":                       {email},
+		"js-available":                {"true"},
+		"webauthn-available":          {"true"},
+		"is-brave":                    {"false"},
 		"webauthn-platform-available": {"false"},
-		"action":               {"default"},
+		"action":                      {"default"},
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, strings.NewReader(formData.Encode()))
 	if err != nil {
@@ -289,13 +286,13 @@ func (s *openAISession) step5GetSessionToken(ctx context.Context) (string, error
 //	mail_api_url, mail_admin_token, mail_domain
 //	captcha_provider – "yescaptcha" | "2captcha" (optional)
 //	captcha_key      – captcha API key
-func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting ChatGPT account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
 
 	// ── Temp email ────────────────────────────────────────────────────────────
-	mailProviderType := cfgStr(config, "mail_provider", "mailtm")
+	mailProviderType := cfgStr(config, "mail_provider", "tempmail")
 	mailCfg := map[string]string{
 		"api_url":     cfgStr(config, "mail_api_url", ""),
 		"admin_token": cfgStr(config, "mail_admin_token", ""),
@@ -305,14 +302,14 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 12, "Getting temporary email address…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 18, fmt.Sprintf("Got email: %s", email), "running")
@@ -325,7 +322,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	if captchaProvider != "" && captchaKey != "" {
 		if _, err := captcha.New(captchaProvider, captchaKey); err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("Captcha provider error: %v", err), "failed")
-			return err
+			return nil, err
 		}
 	}
 
@@ -333,7 +330,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	sess, err := newOpenAISession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to init HTTP session: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – seed session / get state
@@ -341,13 +338,13 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	state, err := sess.step1SeedSession(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 1 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	if state == "" {
 		// This typically means Cloudflare blocked the request.
 		err = fmt.Errorf("could not obtain auth state – Cloudflare protection may be active; try with a residential proxy")
 		sendProgress(publish, taskID, 100, err.Error(), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 2 – submit email
@@ -355,7 +352,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	state, err = sess.step2SignUpWithEmail(ctx, email, state)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 2 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 3 – set password
@@ -364,7 +361,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	state, err = sess.step3SetPassword(ctx, email, password, state)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 4 – wait for OTP and verify
@@ -376,13 +373,13 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 		otp, err = mp.WaitForCode(ctx, mailAccount, "", 60)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-			return err
+			return nil, err
 		}
 	}
 	sendProgress(publish, taskID, 70, fmt.Sprintf("Got OTP: %s – verifying…", otp), "running")
 	if err := sess.step4VerifyEmail(ctx, email, otp, state); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 4 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 5 – obtain session/access token
@@ -397,7 +394,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extra := ""
 	if token != "" {
@@ -411,12 +408,9 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 		TaskBatchID: taskID,
 		Extra:       extra,
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
-	sendProgress(publish, taskID, 100, fmt.Sprintf("✓ ChatGPT account registered: %s", email), "completed")
-	return nil
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: fmt.Sprintf("✓ ChatGPT account registered: %s", email),
+	}, nil
 }
-

@@ -17,27 +17,24 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // Trae.ai registration endpoints.
 // Reference: https://github.com/lxf746/any-auto-register/blob/main/platforms/trae/core.py
 const (
-	traeBaseURL = "https://ug-normal.trae.ai"
-	traeAPIBase = "https://api-sg-central.trae.ai"
-	traeAID     = "677332"
-	traeSDKVer  = "2.1.10-tiktok"
+	traeBaseURL  = "https://ug-normal.trae.ai"
+	traeAPIBase  = "https://api-sg-central.trae.ai"
+	traeAID      = "677332"
+	traeSDKVer   = "2.1.10-tiktok"
 	traeVerifyFP = "verify_mmt7gooq_u1iacZ2Q_GkCW_4aPC_86Qf_nZN7GxQ7wzrX"
-	traeUA      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+	traeUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 )
 
 // TraeExecutor registers new Trae.ai accounts via the TikTok passport API.
-type TraeExecutor struct {
-	db *gorm.DB
-}
+type TraeExecutor struct{}
 
-func NewTraeExecutor(db *gorm.DB) *TraeExecutor {
-	return &TraeExecutor{db: db}
+func NewTraeExecutor() *TraeExecutor {
+	return &TraeExecutor{}
 }
 
 type traeSession struct {
@@ -118,7 +115,7 @@ func (s *traeSession) postJSON(ctx context.Context, rawURL string, params url.Va
 
 // step1Region initialises a regional session.
 func (s *traeSession) step1Region(ctx context.Context) {
-	_ , _ = s.postForm(ctx, traeBaseURL+"/passport/web/region/",
+	_, _ = s.postForm(ctx, traeBaseURL+"/passport/web/region/",
 		s.baseParams(), url.Values{"type": {"2"}})
 }
 
@@ -217,7 +214,7 @@ func (s *traeSession) step6CheckLogin(ctx context.Context) map[string]interface{
 // Execute runs the full Trae.ai registration flow.
 //
 // Config keys: proxy, mail_provider, mail_api_url, mail_admin_token, mail_domain
-func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting Trae.ai account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
@@ -232,14 +229,14 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 10, "Getting temporary email…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 18, fmt.Sprintf("Got email: %s", email), "running")
@@ -247,7 +244,7 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	sess, err := newTraeSession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Session init error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – region
@@ -258,7 +255,7 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	sendProgress(publish, taskID, 30, "Step 2/6: Sending OTP email…", "running")
 	if err := sess.step2SendCode(ctx, email); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 2 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Wait for OTP
@@ -266,7 +263,7 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	otp, err := mp.WaitForCode(ctx, mailAccount, "", 120)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	sendProgress(publish, taskID, 52, fmt.Sprintf("Got OTP: %s", otp), "running")
 
@@ -276,7 +273,7 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	userID, err := sess.step3Register(ctx, email, password, otp)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Steps 4-6 – login + token
@@ -300,7 +297,7 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extraMap := map[string]string{"user_id": userID, "token": token, "region": region}
 	extraJSON, _ := json.Marshal(extraMap)
@@ -312,11 +309,9 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 		TaskBatchID: taskID,
 		Extra:       string(extraJSON),
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
-	sendProgress(publish, taskID, 100, fmt.Sprintf("✓ Trae.ai account registered: %s (user_id=%s)", email, userID), "completed")
-	return nil
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: fmt.Sprintf("✓ Trae.ai account registered: %s (user_id=%s)", email, userID),
+	}, nil
 }

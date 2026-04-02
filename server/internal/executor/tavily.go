@@ -20,7 +20,6 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // Tavily registration (Auth0 PKCE flow).
@@ -35,12 +34,10 @@ const (
 )
 
 // TavilyExecutor registers new Tavily accounts.
-type TavilyExecutor struct {
-	db *gorm.DB
-}
+type TavilyExecutor struct{}
 
-func NewTavilyExecutor(db *gorm.DB) *TavilyExecutor {
-	return &TavilyExecutor{db: db}
+func NewTavilyExecutor() *TavilyExecutor {
+	return &TavilyExecutor{}
 }
 
 type tavilySession struct {
@@ -216,12 +213,12 @@ func (s *tavilySession) step5SubmitPassword(ctx context.Context, email, password
 		tavilyAuth0Base+"/u/signup/password",
 		url.Values{"state": {pwState}},
 		url.Values{
-			"state":                         {pwState},
-			"email":                         {email},
-			"password":                      {password},
-			"passwordPolicy.isFlexible":     {"false"},
-			"strengthPolicy":                {"good"},
-			"complexityOptions.minLength":   {"8"},
+			"state":                       {pwState},
+			"email":                       {email},
+			"password":                    {password},
+			"passwordPolicy.isFlexible":   {"false"},
+			"strengthPolicy":              {"good"},
+			"complexityOptions.minLength": {"8"},
 		},
 	)
 	if err != nil {
@@ -273,7 +270,7 @@ func (s *tavilySession) step6ResumeAndGetKey(ctx context.Context, resumeState st
 //
 //	proxy, mail_provider, mail_api_url, mail_admin_token, mail_domain
 //	captcha_provider, captcha_key  (Turnstile required)
-func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting Tavily account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
@@ -288,14 +285,14 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 8, "Getting temporary email…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 15, fmt.Sprintf("Got email: %s", email), "running")
@@ -308,14 +305,14 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		solver, err = captcha.New(captchaProvider, captchaKey)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("Captcha provider error: %v", err), "failed")
-			return err
+			return nil, err
 		}
 	}
 
 	sess, err := newTavilySession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Session init error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – authorize
@@ -323,7 +320,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	state, err := sess.step1Authorize(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 1 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 2 – Turnstile
@@ -333,7 +330,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		captchaToken, err = sess.step2SolveCaptcha(ctx, solver)
 		if err != nil {
 			sendProgress(publish, taskID, 100, fmt.Sprintf("Step 2 CAPTCHA failed: %v", err), "failed")
-			return err
+			return nil, err
 		}
 		sendProgress(publish, taskID, 35, "CAPTCHA solved", "running")
 	}
@@ -343,7 +340,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	challengeState, err := sess.step3SubmitEmail(ctx, email, state, captchaToken)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Wait for OTP
@@ -351,7 +348,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	otp, err := mp.WaitForCode(ctx, mailAccount, "tavily", 120)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	sendProgress(publish, taskID, 55, fmt.Sprintf("Got OTP: %s", otp), "running")
 
@@ -360,7 +357,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	pwState, err := sess.step4SubmitOTP(ctx, otp, challengeState)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 4 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 5 – set password
@@ -369,7 +366,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	resumeState, err := sess.step5SubmitPassword(ctx, email, password, pwState)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 5 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 6 – resume and get API key
@@ -384,7 +381,7 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extraMap := map[string]string{"api_key": apiKey}
 	extraJSON, _ := json.Marshal(extraMap)
@@ -396,15 +393,14 @@ func (e *TavilyExecutor) Execute(ctx context.Context, taskID uint, config map[st
 		TaskBatchID: taskID,
 		Extra:       string(extraJSON),
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
 	msg := fmt.Sprintf("✓ Tavily account registered: %s", email)
 	if apiKey != "" {
 		msg += fmt.Sprintf(" (api_key=%s…)", apiKey[:min(20, len(apiKey))])
 	}
-	sendProgress(publish, taskID, 100, msg, "completed")
-	return nil
+
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: msg,
+	}, nil
 }

@@ -28,7 +28,6 @@ import (
 	"github.com/msojocs/free2api/server/pkg/crypto"
 	"github.com/msojocs/free2api/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
-	"gorm.io/gorm"
 )
 
 // Kiro (AWS Builder ID) registration.
@@ -287,10 +286,10 @@ type kiroSession struct {
 	withRedirect *http.Client
 
 	// State extracted during registration
-	codeVerifier     string
-	codeChallenge    string
-	pkceState        string
-	visitorID        string
+	codeVerifier  string
+	codeChallenge string
+	pkceState     string
+	visitorID     string
 
 	wsh                  string // workflowStateHandle
 	profileWfID          string // profile.aws.amazon.com workflow ID
@@ -367,8 +366,8 @@ func newKiroSession(proxyURL string) (*kiroSession, error) {
 
 func (s *kiroSession) ua() map[string]string {
 	return map[string]string{
-		"User-Agent":      kiroUA,
-		"Sec-CH-UA":       `"Chromium";v="131", "Not_A Brand";v="24"`,
+		"User-Agent":       kiroUA,
+		"Sec-CH-UA":        `"Chromium";v="131", "Not_A Brand";v="24"`,
 		"Sec-CH-UA-Mobile": "?0",
 	}
 }
@@ -742,11 +741,11 @@ func (s *kiroSession) step6ProfileLoad(ctx context.Context) error {
 // browserData returns a minimal browser data payload for profile.aws.amazon.com.
 func (s *kiroSession) browserData(pageName, eventType string) map[string]interface{} {
 	attrs := map[string]interface{}{
-		"fingerprint":    "",
-		"eventTimestamp": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
+		"fingerprint":     "",
+		"eventTimestamp":  time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
 		"timeSpentOnPage": "3000",
-		"eventType":      eventType,
-		"ubid":           s.platformUbid,
+		"eventType":       eventType,
+		"ubid":            s.platformUbid,
 	}
 	if pageName != "" {
 		attrs["pageName"] = pageName
@@ -858,19 +857,19 @@ func (s *kiroSession) step10SetPassword(ctx context.Context, password, email str
 
 	fpI := s.fingerprintInput()
 	pwdI := map[string]interface{}{
-		"input_type":              "PasswordRequestInput",
-		"password":                jweToken,
-		"successfullyEncrypted":   "SUCCESSFUL",
-		"errorLog":                nil,
+		"input_type":            "PasswordRequestInput",
+		"password":              jweToken,
+		"successfullyEncrypted": "SUCCESSFUL",
+		"errorLog":              nil,
 	}
 	usrI := map[string]interface{}{
 		"input_type": "UserRequestInput",
 		"username":   email,
 	}
 	evtI := map[string]interface{}{
-		"input_type":   "UserEventRequestInput",
-		"directoryId":  kiroDirID,
-		"userName":     email,
+		"input_type":  "UserEventRequestInput",
+		"directoryId": kiroDirID,
+		"userName":    email,
 		"userEvents": []map[string]interface{}{
 			{
 				"input_type":      "UserEvent",
@@ -942,13 +941,13 @@ func (s *kiroSession) step11FinalLogin(ctx context.Context, email string, step10
 	}
 	apiURL := fmt.Sprintf("%s/platform/%s/api/execute", kiroSigninAWS, kiroDirID)
 	body := map[string]interface{}{
-		"stepId":                "",
-		"workflowStateHandle":   loginWSH,
-		"workflowResultHandle":  wfResult,
-		"state":                 state,
-		"inputs":                []interface{}{usrI, fpI},
-		"visitorId":             s.tesVisitorID,
-		"requestId":             newUUID(),
+		"stepId":               "",
+		"workflowStateHandle":  loginWSH,
+		"workflowResultHandle": wfResult,
+		"state":                state,
+		"inputs":               []interface{}{usrI, fpI},
+		"visitorId":            s.tesVisitorID,
+		"requestId":            newUUID(),
 	}
 	resp, err := s.doReq(ctx, http.MethodPost, apiURL, jsonBody(body),
 		map[string]string{
@@ -998,11 +997,11 @@ func (s *kiroSession) step12GetTokens(ctx context.Context) (map[string]interface
 		portalBase+"/auth/sso-token",
 		strings.NewReader(ssoBody.Encode()),
 		map[string]string{
-			"Content-Type":      "application/x-www-form-urlencoded",
-			"Accept":            "application/json, text/plain, */*",
+			"Content-Type":         "application/x-www-form-urlencoded",
+			"Accept":               "application/json, text/plain, */*",
 			"X-Amz-SSO-CSRF-Token": s.portalCSRFToken,
-			"Origin":            "https://view.awsapps.com",
-			"Referer":           "https://view.awsapps.com/",
+			"Origin":               "https://view.awsapps.com",
+			"Referer":              "https://view.awsapps.com/",
 		}, true)
 	if err != nil {
 		return nil, fmt.Errorf("kiro step12a: %w", err)
@@ -1031,8 +1030,8 @@ func (s *kiroSession) step12GetTokens(ctx context.Context) (map[string]interface
 	// 12c: POST oidc/authentication_result
 	oidcBase := "https://oidc.us-east-1.amazonaws.com"
 	authBody := map[string]interface{}{
-		"bearerToken":     bearerToken,
-		"orchestratorId":  s.orchestratorID,
+		"bearerToken":    bearerToken,
+		"orchestratorId": s.orchestratorID,
 	}
 	authResp, err := s.doReq(ctx, http.MethodPost,
 		oidcBase+"/authentication_result", jsonBody(authBody),
@@ -1122,12 +1121,10 @@ func (s *kiroSession) step12GetTokens(ctx context.Context) (map[string]interface
 // ---------------------------------------------------------------------------
 
 // KiroExecutor registers new Kiro (AWS Builder ID) accounts.
-type KiroExecutor struct {
-	db *gorm.DB
-}
+type KiroExecutor struct{}
 
-func NewKiroExecutor(db *gorm.DB) *KiroExecutor {
-	return &KiroExecutor{db: db}
+func NewKiroExecutor() *KiroExecutor {
+	return &KiroExecutor{}
 }
 
 // Execute runs the full 12-step Kiro / AWS Builder ID registration flow.
@@ -1140,7 +1137,7 @@ func NewKiroExecutor(db *gorm.DB) *KiroExecutor {
 // NOTE: This implementation omits the XXTEA device fingerprint (fwcim) that
 // the reference Python implementation generates. As a result, AWS risk checks
 // may trigger and reject the request. A residential proxy is recommended.
-func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error {
+func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error) {
 	sendProgress(publish, taskID, 0, "Starting Kiro (AWS Builder ID) account registration", "running")
 
 	proxyURL := cfgStr(config, "proxy", "")
@@ -1156,14 +1153,14 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	sendProgress(publish, taskID, 5, "Getting temporary email…", "running")
 	mailAccount, err := mp.GetEmail(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Get email failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 10, fmt.Sprintf("Got email: %s", email), "running")
@@ -1171,7 +1168,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	sess, err := newKiroSession(proxyURL)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Session init error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 1 – Kiro InitiateLogin (CBOR)
@@ -1179,28 +1176,28 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	redirectURL, err := sess.step1KiroInit(ctx)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 1 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 2 – follow redirect chain to get wsh
 	sendProgress(publish, taskID, 16, "Step 2/12: Following redirect chain…", "running")
 	if err := sess.step2GetWSH(ctx, redirectURL); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 2 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 3 – signin.aws SIGNUP workflow
 	sendProgress(publish, taskID, 22, "Step 3/12: Signin workflow (SIGNUP)…", "running")
 	if err := sess.step3SigninFlow(ctx, email); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 3 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 4 – signup workflow → get profile workflowID
 	sendProgress(publish, taskID, 28, "Step 4/12: Signup workflow…", "running")
 	if err := sess.step4SignupFlow(ctx, email); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 4 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 5 – TES token (optional)
@@ -1211,14 +1208,14 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	sendProgress(publish, taskID, 37, "Step 6/12: Profile page load…", "running")
 	if err := sess.step6ProfileLoad(ctx); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 6 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 7 – send OTP
 	sendProgress(publish, taskID, 43, "Step 7/12: Sending OTP email…", "running")
 	if err := sess.step7SendOTP(ctx, email); err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 7 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Wait for OTP
@@ -1226,7 +1223,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	otp, err := mp.WaitForCode(ctx, mailAccount, "", 120)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("OTP wait failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	sendProgress(publish, taskID, 55, fmt.Sprintf("Got OTP: %s", otp), "running")
 
@@ -1235,7 +1232,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	regCode, signInState, err := sess.step8CreateIdentity(ctx, otp, email, fullName)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 8 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 9 – signup registration
@@ -1243,7 +1240,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	step9Resp, err := sess.step9SignupRegistration(ctx, regCode, signInState)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 9 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 10 – set password (JWE encrypted)
@@ -1252,7 +1249,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	step10Resp, err := sess.step10SetPassword(ctx, password, email, step9Resp)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Step 10 failed: %v", err), "failed")
-		return err
+		return nil, err
 	}
 
 	// Step 11 – final login
@@ -1274,7 +1271,7 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 	encPass, err := crypto.Encrypt(password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Encrypt error: %v", err), "failed")
-		return err
+		return nil, err
 	}
 	extraMap := map[string]interface{}{
 		"name":         fullName,
@@ -1291,16 +1288,15 @@ func (e *KiroExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 		TaskBatchID: taskID,
 		Extra:       string(extraJSON),
 	}
-	if err := e.db.Create(acct).Error; err != nil {
-		sendProgress(publish, taskID, 100, fmt.Sprintf("Save account failed: %v", err), "failed")
-		return err
-	}
 
 	accessToken, _ := tokens["accessToken"].(string)
 	msg := fmt.Sprintf("✓ Kiro account registered: %s", email)
 	if accessToken != "" {
 		msg += fmt.Sprintf(" (token=%s…)", accessToken[:min(20, len(accessToken))])
 	}
-	sendProgress(publish, taskID, 100, msg, "completed")
-	return nil
+
+	return &ExecutionResult{
+		Account:        acct,
+		SuccessMessage: msg,
+	}, nil
 }

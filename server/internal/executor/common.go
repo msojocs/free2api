@@ -6,10 +6,16 @@ import (
 	"math/big"
 
 	"github.com/msojocs/free2api/server/internal/core"
+	"github.com/msojocs/free2api/server/internal/model"
 )
 
 type Executor interface {
-	Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) error
+	Execute(ctx context.Context, taskID uint, config map[string]interface{}, publish func(core.ProgressUpdate)) (*ExecutionResult, error)
+}
+
+type ExecutionResult struct {
+	Account        *model.Account
+	SuccessMessage string
 }
 
 func sendProgress(publish func(core.ProgressUpdate), taskID uint, progress int, message, status string) {
@@ -27,11 +33,11 @@ func sendProgress(publish func(core.ProgressUpdate), taskID uint, progress int, 
 // randPassword generates a cryptographically random 16-character password that
 // satisfies basic complexity: at least one lowercase, uppercase, digit and symbol.
 func randPassword() string {
-	const lower   = "abcdefghijklmnopqrstuvwxyz"
-	const upper   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	const digits  = "0123456789"
+	const lower = "abcdefghijklmnopqrstuvwxyz"
+	const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const digits = "0123456789"
 	const special = "!@#$"
-	const all     = lower + upper + digits + special
+	const all = lower + upper + digits + special
 
 	pick := func(charset string) byte {
 		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
