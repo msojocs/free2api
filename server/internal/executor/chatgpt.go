@@ -162,6 +162,43 @@ func (s *openAISession) generateCodeChallenge(codeVerifier string) string {
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
+func (s *openAISession) fillBaseHeaders(req *http.Request) {
+	headers := map[string]string{
+		"upgrade-insecure-requests":   "1",
+		"user-agent":                  chatGPTUA,
+		"sec-fetch-site":              "none",
+		"sec-fetch-mode":              "navigate",
+		"sec-fetch-user":              "?1",
+		"sec-fetch-dest":              "document",
+		"sec-ch-ua":                   `"Chromium";v="146", "Not-A.Brand";v="24", "Microsoft Edge";v="146"`,
+		"sec-ch-ua-mobile":            "?0",
+		"sec-ch-ua-full-version":      `"146.0.3856.84"`,
+		"sec-ch-ua-arch":              `"x86"`,
+		"sec-ch-ua-platform":          `"Windows"`,
+		"sec-ch-ua-platform-version":  `"19.0.0"`,
+		"sec-ch-ua-model":             `""`,
+		"sec-ch-ua-bitness":           `"64"`,
+		"sec-ch-ua-full-version-list": `"Chromium";v="146.0.7680.166", "Not-A.Brand";v="24.0.0.0", "Microsoft Edge";v="146.0.3856.84"`,
+		"accept-language":             "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+		"priority":                    "u=0, i",
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+}
+
+func (s *openAISession) fillJsonHeaders(req *http.Request) {
+	s.fillBaseHeaders(req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+}
+
+func (s *openAISession) fillHtmlHeaders(req *http.Request) {
+	s.fillBaseHeaders(req)
+	req.Header.Set("accept-encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+}
+
 // prepareSession visits the signup page to obtain the oid-did cookies and sentinel token.
 func (s *openAISession) prepareSession(ctx context.Context) (*openAIPrepareResult, error) {
 
@@ -181,8 +218,7 @@ func (s *openAISession) prepareSession(ctx context.Context) (*openAIPrepareResul
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("User-Agent", chatGPTUA)
-		req.Header.Set("Accept", "text/html")
+		s.fillHtmlHeaders(req)
 		resp, err := s.withRedirect.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("chatgpt step1: %w", err)
@@ -210,7 +246,10 @@ func (s *openAISession) prepareSession(ctx context.Context) (*openAIPrepareResul
 	{
 		// TODO: 地址配置化
 		s.sentinelToken = openai.NewSentinelToken("http://127.0.0.1:3000", "authorize_continue", result.OaiDid)
-		s.sentinelToken.Req(s.noRedirect)
+		_, err = s.sentinelToken.Req(s.noRedirect)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get sentinel token: %w", err)
+		}
 	}
 	return result, nil
 }
@@ -247,27 +286,31 @@ func (s *openAISession) isEmailNeedSignUp(ctx context.Context, email string, pre
 		}
 		sentinelToken, err := json.Marshal(sentinelTokenMap)
 		if err != nil {
-			return false, fmt.Errorf("Check email: failed to marshal sentinel token: %w", err)
+			return false, fmt.Errorf("Failed to marshal sentinel token: %w", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
+		s.fillBaseHeaders(req)
 		req.Header.Set("User-Agent", chatGPTUA)
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Referer", "https://auth.openai.com/create-account")
 		req.Header.Set("openai-sentinel-token", string(sentinelToken))
 	}
 
 	resp, err := s.noRedirect.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("Check email: %w", err)
+		return false, fmt.Errorf("Failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, fmt.Errorf("Failed to read response body: %w", err)
+	}
 	var continueResult struct {
 		Page struct {
 			Type string `json:"type"`
 		} `json:"page"`
 	}
 	if err := json.Unmarshal(body, &continueResult); err != nil {
-		return false, fmt.Errorf("Check email: failed to parse response: %w", err)
+		return false, fmt.Errorf("Failed to parse response: %w", err)
 	}
 
 	switch continueResult.Page.Type {
@@ -279,7 +322,7 @@ func (s *openAISession) isEmailNeedSignUp(ctx context.Context, email string, pre
 		return true, nil
 	default:
 		// 非预期的响应类型
-		return false, fmt.Errorf("Check email: unexpected page type: %s; response: %s", continueResult.Page.Type, string(body))
+		return false, fmt.Errorf("Unexpected page type: %s; response: %s", continueResult.Page.Type, string(body))
 	}
 
 }
@@ -307,7 +350,7 @@ func (s *openAISession) setPassword(ctx context.Context, email, password string,
 		time.Sleep(time.Second * 3)
 		headers, err := s.sentinelToken.GetSentinelHeader()
 		if err != nil {
-			return "", fmt.Errorf("chatgpt step3: failed to get sentinel header: %w", err)
+			return "", fmt.Errorf("Failed to get sentinel header: %w", err)
 		}
 		sentinelTokenMap := map[string]string{
 			"p":    headers["p"],
@@ -318,23 +361,22 @@ func (s *openAISession) setPassword(ctx context.Context, email, password string,
 		}
 		sentinelToken, err := json.Marshal(sentinelTokenMap)
 		if err != nil {
-			return "", fmt.Errorf("chatgpt step3: failed to marshal sentinel token: %w", err)
+			return "", fmt.Errorf("Failed to marshal sentinel token: %w", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", chatGPTUA)
+		s.fillJsonHeaders(req)
 		req.Header.Set("Referer", "https://auth.openai.com/create-account/password")
 		req.Header.Set("openai-sentinel-token", string(sentinelToken))
 	}
 
 	resp, err := s.noRedirect.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("chatgpt step3: %w", err)
+		return "", fmt.Errorf("Failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("chatgpt step3: unexpected status code: %d; response: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("Failed to execute request: unexpected status code: %d; response: %s", resp.StatusCode, string(body))
 	}
 
 	var passResult struct {
@@ -343,10 +385,10 @@ func (s *openAISession) setPassword(ctx context.Context, email, password string,
 		} `json:"page"`
 	}
 	if err := json.Unmarshal(body, &passResult); err != nil {
-		return "", fmt.Errorf("chatgpt step3: failed to parse response: %w; response: %s", err, string(body))
+		return "", fmt.Errorf("Failed to parse response: %w; response: %s", err, string(body))
 	}
 	if passResult.Page.Type != "email_otp_send" {
-		return "", fmt.Errorf("chatgpt step3: unexpected page type: %s; response: %s", passResult.Page.Type, string(body))
+		return "", fmt.Errorf("Failed: unexpected page type: %s; response: %s", passResult.Page.Type, string(body))
 	}
 	return "", nil
 }
@@ -358,7 +400,7 @@ func (s *openAISession) sendOtp(ctx context.Context, prepareResult *openAIPrepar
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", chatGPTUA)
+	s.fillHtmlHeaders(req)
 	req.Header.Set("Referer", "https://auth.openai.com/create-account/password")
 	resp, err := s.withRedirect.Do(req)
 	if err != nil {
@@ -380,7 +422,7 @@ func (s *openAISession) resendOtp(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", chatGPTUA)
+	s.fillJsonHeaders(req)
 	req.Header.Set("Referer", "https://auth.openai.com/create-account/password")
 	resp, err := s.withRedirect.Do(req)
 	if err != nil {
@@ -417,8 +459,7 @@ func (s *openAISession) verifyEmailOTP(ctx context.Context, email, otp string, p
 		return err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", chatGPTUA)
+	s.fillJsonHeaders(req)
 	req.Header.Set("Referer", "https://auth.openai.com/email-verification")
 
 	time.Sleep(time.Second * 3)
@@ -483,8 +524,7 @@ func (s *openAISession) createAccount(ctx context.Context, prepareResult *openAI
 			return fmt.Errorf("chatgpt createAccount: failed to marshal sentinel token: %w", err)
 		}
 
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", chatGPTUA)
+		s.fillJsonHeaders(req)
 		req.Header.Set("Referer", "https://auth.openai.com/about-you")
 		req.Header.Set("openai-sentinel-token", string(sentinelToken))
 	}
@@ -561,8 +601,8 @@ func (s *openAISession) getCallbackUrl(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		s.fillJsonHeaders(req)
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", chatGPTUA)
 		resp, err := s.withRedirect.Do(req)
 		if err != nil {
 			return "", fmt.Errorf("chatgpt step5 workspace select: %w", err)
@@ -592,7 +632,7 @@ func (s *openAISession) getCallbackUrl(ctx context.Context) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			req.Header.Set("User-Agent", chatGPTUA)
+			s.fillHtmlHeaders(req)
 			resp, err := s.noRedirect.Do(req)
 			if err != nil {
 				return "", fmt.Errorf("chatgpt step5 final redirect: %w", err)
@@ -644,7 +684,8 @@ func (s *openAISession) getTokenInfo(ctx context.Context, callbackUrl string, pr
 		return nil, fmt.Errorf("chatgpt getAccountInfo: failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", chatGPTUA)
+	req.Header.Set("accept", "*/*")
+	req.Header.Del("User-Agent")
 
 	resp, err := s.noRedirect.Do(req)
 	if err != nil {
@@ -757,6 +798,7 @@ executor_loop:
 			stepContext.prepareResult = prepareResult
 			e.step = "check_email"
 		case "check_email":
+			sendProgress(publish, taskID, 40, "Checking if email needs sign-up…", "running")
 			needSignUp, err := sess.isEmailNeedSignUp(ctx, email, stepContext.prepareResult)
 			if err != nil {
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Check email failed: %v", err), "failed")
