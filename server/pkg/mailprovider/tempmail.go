@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -141,6 +142,7 @@ func (p *TempMailLolProvider) WaitForCode(ctx context.Context, account *MailAcco
 		if err != nil {
 			continue
 		}
+		log.Printf("收到邮件数量：%d", len(msgs))
 		for _, m := range msgs {
 			if m.ID == "" || seen[m.ID] {
 				continue

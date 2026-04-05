@@ -10,8 +10,9 @@ const server = http.createServer(async (req, res) => {
       const generator = new TokenGenerator();
       const proof = await generator.getRequirementsToken();
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ token: proof }));
+      res.end(proof);
     } catch (error) {
+      console.error("Error in /proof:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: error.message }));
     }
@@ -28,10 +29,17 @@ const server = http.createServer(async (req, res) => {
       }) : null;
       const data = JSON.parse(body);
       const { turnstile } = require("./utils/turnstile");
+      const { TokenGenerator } = require("./utils/proof");
+      const generator = new TokenGenerator();
+      const enforcementToken = await generator.getEnforcementToken(data.sentinelInfo);
       const result = await turnstile(data.proof, data.sentinelInfo);
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ turnstile: result }));
+      res.end(JSON.stringify({
+        enforcementToken,
+        turnstileToken: result,
+      }));
     } catch (error) {
+      console.error("Error in /turnstile:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: error.message }));
     }
