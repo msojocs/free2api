@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/msojocs/free2api/server/internal/core"
 	"github.com/msojocs/free2api/server/internal/executor"
@@ -15,15 +14,16 @@ func main() {
 		gpt := executor.NewChatGPTExecutor()
 		ctx := context.Background()
 		cfg := map[string]interface{}{
-			"proxy": "http://127.0.0.1:7890",
+			"proxy": "http://127.0.0.1:8866",
 		}
 		result, err := gpt.Execute(ctx, 0, cfg, func(p core.ProgressUpdate) {
 			log.Printf("%v", p)
 		})
 		if err != nil {
 			log.Printf("Execute failed: %v", err)
+			continue
 		}
 		log.Printf("Result: %v", result)
-		time.Sleep(time.Second * 20)
+		break
 	}
 }

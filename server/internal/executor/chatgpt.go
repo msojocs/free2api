@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -272,7 +273,6 @@ func (s *openAISession) isEmailNeedSignUp(ctx context.Context, email string, pre
 	}
 
 	{
-		time.Sleep(time.Second * 3)
 		headers, err := s.sentinelToken.GetSentinelHeader()
 		if err != nil {
 			return false, fmt.Errorf("Check email: failed to get sentinel header: %w", err)
@@ -347,7 +347,6 @@ func (s *openAISession) setPassword(ctx context.Context, email, password string,
 	}
 
 	{
-		time.Sleep(time.Second * 3)
 		headers, err := s.sentinelToken.GetSentinelHeader()
 		if err != nil {
 			return "", fmt.Errorf("Failed to get sentinel header: %w", err)
@@ -462,7 +461,6 @@ func (s *openAISession) verifyEmailOTP(ctx context.Context, email, otp string, p
 	s.fillJsonHeaders(req)
 	req.Header.Set("Referer", "https://auth.openai.com/email-verification")
 
-	time.Sleep(time.Second * 3)
 	resp, err := s.noRedirect.Do(req)
 	if err != nil {
 		return fmt.Errorf("chatgpt step4: %w", err)
@@ -507,7 +505,6 @@ func (s *openAISession) createAccount(ctx context.Context, prepareResult *openAI
 	s.sentinelToken = openai.NewSentinelToken("http://127.0.0.1:3000", "oauth_create_account", prepareResult.OaiDid)
 	s.sentinelToken.Req(s.noRedirect)
 	{
-		time.Sleep(time.Second * 3)
 		headers, err := s.sentinelToken.GetSentinelHeader()
 		if err != nil {
 			return fmt.Errorf("chatgpt createAccount: failed to get sentinel header: %w", err)
@@ -564,27 +561,23 @@ func (s *openAISession) getCallbackUrl(ctx context.Context) (string, error) {
 
 	resp, err := s.withRedirect.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("chatgpt step5: %w", err)
+		return "", fmt.Errorf("Request error: %w", err)
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
-	// 格式："id\",\"90ae07ea-04d5-4dd5-93bc-ee71ef33f3cd\",\"profile_picture_alt_text
 	bodyStr := string(body)
 	hasWorkspaceId := strings.Contains(bodyStr, "\"id")
 	if !hasWorkspaceId {
-		return "", fmt.Errorf("chatgpt step5: workspace id not found in response. %s", bodyStr[0:200])
+		return "", fmt.Errorf("Workspace id not found in response. %s", bodyStr[0:200])
 	}
-	parts := strings.Split(bodyStr, "\"id\",\"")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("chatgpt step5: unexpected response format; 'id' field not found. %s", bodyStr[0:200])
+	// 格式："id\",\"90ae07ea-04d5-4dd5-93bc-ee71ef33f3cd\",\"profile_picture_alt_text
+	reg := regexp.MustCompile(`"id\\",\\"([0-9a-fA-F-]+)\\"`)
+	matches := reg.FindStringSubmatch(bodyStr)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("Unexpected response format; 'id' field not found. %s", bodyStr[0:200])
 	}
-	idPart := parts[1]
-	idParts := strings.Split(idPart, "\",\"profile_picture_alt_text")
-	if len(idParts) < 1 {
-		return "", fmt.Errorf("chatgpt step5: unexpected response format; 'id' field not properly terminated. %s", bodyStr[0:200])
-	}
-	workspaceId := idParts[0]
+	workspaceId := matches[1]
 
 	var continueUrl string
 	{
@@ -605,7 +598,7 @@ func (s *openAISession) getCallbackUrl(ctx context.Context) (string, error) {
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := s.withRedirect.Do(req)
 		if err != nil {
-			return "", fmt.Errorf("chatgpt step5 workspace select: %w", err)
+			return "", fmt.Errorf("Request error: %w", err)
 		}
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
@@ -812,7 +805,7 @@ executor_loop:
 		case "set_password":
 			// Set password
 			password := randPassword()
-			sendProgress(publish, taskID, 50, "Setting password…", "running")
+			sendProgress(publish, taskID, 50, fmt.Sprintf("Setting password: %s …", password), "running")
 			passResult, err := sess.setPassword(ctx, email, password, stepContext.prepareResult)
 			if err != nil {
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to set password: %v", err), "failed")

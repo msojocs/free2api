@@ -36,7 +36,7 @@ func randPassword() string {
 	const lower = "abcdefghijklmnopqrstuvwxyz"
 	const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	const digits = "0123456789"
-	const special = "!@#$"
+	const special = "."
 	const all = lower + upper + digits + special
 
 	pick := func(charset string) byte {
