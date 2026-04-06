@@ -1,0 +1,54 @@
+# free2api server configuration
+# All values can be overridden by the corresponding environment variable.
+# Environment variables always take priority over this file.
+
+server:
+  # Port the HTTP server listens on.
+  # Env: PORT
+  port: "8080"
+
+database:
+  # Database driver: "sqlite" or "mysql"
+  # Env: DB_DRIVER
+  driver: sqlite
+
+  # ── SQLite ──────────────────────────────────────────────────────────────────
+  # Path to the SQLite database file (only used when driver = sqlite).
+  # Env: DB_PATH
+  path: data/free2api.db
+
+  # ── MySQL ────────────────────────────────────────────────────────────────────
+  # Uncomment and fill in the fields below to use MySQL (driver = mysql).
+  #
+  # host: 127.0.0.1      # Env: DB_HOST
+  # db_port: "3306"      # Env: DB_PORT
+  # name: free2api       # Env: DB_NAME
+  # user: root           # Env: DB_USER
+  # password: ""         # Env: DB_PASSWORD
+  # charset: utf8mb4     # Env: DB_CHARSET
+  # parse_time: "True"   # Env: DB_PARSE_TIME
+  # loc: Local           # Env: DB_LOC
+
+auth:
+  # JWT signing secret. Change this in production!
+  # Env: JWT_SECRET
+  jwt_secret: "free2api_jwt_secret_change_in_production"
+
+  # Default admin account created automatically on first startup when the user table is empty.
+  # Change these in production.
+  # Env: DEFAULT_ADMIN_USERNAME / DEFAULT_ADMIN_PASSWORD
+  default_admin_username: "admin"
+  default_admin_password: "admin123456"
+
+captcha:
+  # CAPTCHA solver provider: "2captcha" or "yescaptcha"
+  # Env: CAPTCHA_PROVIDER
+  provider: "2captcha"
+  # API key for the captcha provider.
+  # Env: CAPTCHA_API_KEY
+  api_key: ""
+
+executor:
+  # Base URL of the local sentinel-token proxy server used by the ChatGPT executor.
+  # Env: SENTINEL_BASE_URL
+  sentinel_base_url: "http://127.0.0.1:3000"

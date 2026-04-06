@@ -1,0 +1,43 @@
+package handler
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/msojocs/free2api/server/internal/service"
+)
+
+type SettingHandler struct {
+	svc *service.SettingService
+}
+
+func NewSettingHandler(svc *service.SettingService) *SettingHandler {
+	return &SettingHandler{svc: svc}
+}
+
+// Get returns the current system settings.
+func (h *SettingHandler) Get(c *gin.Context) {
+	setting, err := h.svc.Get()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Fail(500, err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, OK(setting))
+}
+
+// Update saves new system settings.
+func (h *SettingHandler) Update(c *gin.Context) {
+	var req struct {
+		SentinelBaseURL string `json:"sentinel_base_url"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, Fail(400, err.Error()))
+		return
+	}
+	setting, err := h.svc.Save(req.SentinelBaseURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Fail(500, err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, OK(setting))
+}

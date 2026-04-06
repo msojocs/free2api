@@ -1,0 +1,54 @@
+package service
+
+import (
+	"strings"
+
+	"github.com/msojocs/free2api/server/internal/model"
+	"github.com/msojocs/free2api/server/internal/repository"
+)
+
+// SettingService manages global runtime settings.
+type SettingService struct {
+	repo               repository.SettingRepository
+	defaultSentinelURL string
+}
+
+func NewSettingService(repo repository.SettingRepository, defaultSentinelURL string) *SettingService {
+	return &SettingService{repo: repo, defaultSentinelURL: defaultSentinelURL}
+}
+
+func (s *SettingService) Get() (*model.SystemSetting, error) {
+	setting, err := s.repo.Get()
+	if err != nil {
+		return nil, err
+	}
+	// Use config default when the DB value is empty.
+	if setting.SentinelBaseURL == "" {
+		setting.SentinelBaseURL = s.defaultSentinelURL
+	}
+	return setting, nil
+}
+
+// GetSentinelBaseURL returns the configured URL, falling back to the config default.
+func (s *SettingService) GetSentinelBaseURL() string {
+	setting, err := s.repo.Get()
+	if err != nil || strings.TrimSpace(setting.SentinelBaseURL) == "" {
+		return s.defaultSentinelURL
+	}
+	return setting.SentinelBaseURL
+}
+
+func (s *SettingService) Save(sentinelBaseURL string) (*model.SystemSetting, error) {
+	sentinelBaseURL = strings.TrimSpace(sentinelBaseURL)
+	if sentinelBaseURL == "" {
+		sentinelBaseURL = s.defaultSentinelURL
+	}
+	setting := &model.SystemSetting{
+		ID:              1,
+		SentinelBaseURL: sentinelBaseURL,
+	}
+	if err := s.repo.Save(setting); err != nil {
+		return nil, err
+	}
+	return setting, nil
+}
