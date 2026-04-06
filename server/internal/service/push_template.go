@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -193,14 +194,51 @@ func (s *PushTemplateService) PushAccountByID(accountID, templateID uint) (int, 
 
 	plainPassword, _ := crypto.Decrypt(account.Password)
 
+	var extra map[string]interface{}
+	err = json.Unmarshal([]byte(account.Extra), &extra)
+	if err != nil {
+		return 0, "", errors.New("failed to parse account extra field as JSON: " + err.Error())
+	}
+	switch account.Type {
+	case "chatgpt":
+		// 提取AccountId
+		ak := extra["access_token"]
+		if akStr, ok := ak.(string); ok {
+			parts := strings.Split(akStr, ".")
+			if len(parts) > 1 {
+				payloadPart := parts[1]
+				payload, err := base64.RawURLEncoding.DecodeString(payloadPart)
+				if err != nil {
+					return 0, "", errors.New("failed to decode JWT payload: " + err.Error())
+				}
+				var payloadData map[string]interface{}
+				if err := json.Unmarshal(payload, &payloadData); err != nil {
+					return 0, "", errors.New("failed to parse JWT payload as JSON: " + err.Error())
+				}
+				if authData, ok := payloadData["https://api.openai.com/auth"].(map[string]interface{}); ok {
+					if accountId, ok := authData["chatgpt_account_id"].(string); ok {
+						extra["account_id"] = accountId
+					}
+				}
+				// expire time
+				if expired, ok := payloadData["exp"].(float64); ok {
+					expireTime := time.Unix(int64(expired), 0)
+					extra["expire_time"] = expireTime.UTC().Format(time.RFC3339)
+				}
+			}
+		}
+
+	}
+	extra["last_refresh"] = time.Now().UTC().Format(time.RFC3339)
 	data := map[string]interface{}{
 		"email":      account.Email,
 		"password":   plainPassword,
 		"type":       account.Type,
 		"status":     account.Status,
-		"extra":      account.Extra,
+		"extra":      extra,
 		"task_id":    account.TaskBatchID,
 		"created_at": account.CreatedAt.UTC().Format(time.RFC3339),
+		"now":        time.Now().UTC().Format(time.RFC3339),
 	}
 
 	rendered, err := renderTemplate(tmpl.BodyTemplate, data)
