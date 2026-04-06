@@ -8,7 +8,7 @@ server:
   port: "8080"
 
 database:
-  # Database driver: "sqlite" or "mysql"
+  # Database driver: "sqlite" or "postgres"
   # Env: DB_DRIVER
   driver: sqlite
 
@@ -17,17 +17,16 @@ database:
   # Env: DB_PATH
   path: data/free2api.db
 
-  # ── MySQL ────────────────────────────────────────────────────────────────────
-  # Uncomment and fill in the fields below to use MySQL (driver = mysql).
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  # Uncomment and fill in the fields below to use PostgreSQL (driver = postgres).
   #
   # host: 127.0.0.1      # Env: DB_HOST
-  # db_port: "3306"      # Env: DB_PORT
+  # db_port: "5432"      # Env: DB_PORT
   # name: free2api       # Env: DB_NAME
-  # user: root           # Env: DB_USER
+  # user: postgres       # Env: DB_USER
   # password: ""         # Env: DB_PASSWORD
-  # charset: utf8mb4     # Env: DB_CHARSET
-  # parse_time: "True"   # Env: DB_PARSE_TIME
-  # loc: Local           # Env: DB_LOC
+  # ssl_mode: disable    # Env: DB_SSL_MODE
+  # timezone: Local      # Env: DB_TIMEZONE
 
 auth:
   # JWT signing secret. Change this in production!

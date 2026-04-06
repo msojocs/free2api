@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -16,14 +16,14 @@ var DB *gorm.DB
 
 // InitDB opens the database selected by driver and dsn and runs AutoMigrate.
 //
-// driver must be either "sqlite" (default) or "mysql".
+// driver must be either "sqlite" (default) or "postgres".
 // For SQLite, dsn is a file path.
-// For MySQL, dsn is a standard DSN string (user:pass@tcp(host:port)/dbname?...).
+// For PostgreSQL, dsn is a libpq key=value string (host=... user=... ...).
 func InitDB(driver, dsn string) error {
 	var dialector gorm.Dialector
 	switch strings.ToLower(driver) {
-	case "mysql":
-		dialector = mysql.Open(dsn)
+	case "postgres", "postgresql":
+		dialector = postgres.Open(dsn)
 	default: // sqlite
 		dir := filepath.Dir(dsn)
 		if err := os.MkdirAll(dir, 0755); err != nil {

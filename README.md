@@ -109,3 +109,7 @@ npm run dev
 | POST | `/api/proxies/:id/test` | Test proxy connectivity |
 | GET/POST | `/api/mails` | List / add mailboxes |
 | GET | `/api/captcha/stats` | Captcha cost statistics |
+
+## 感谢以下项目提供的思路
+
+https://github.com/zc-zhangchen/any-auto-register
