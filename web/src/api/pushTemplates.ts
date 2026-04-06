@@ -7,6 +7,7 @@ export interface PushTemplate {
   url: string
   method: string
   headers: string
+  query_params: string
   body_template: string
   description: string
   is_system: boolean
@@ -20,6 +21,7 @@ export interface CreatePushTemplatePayload {
   url: string
   method: string
   headers?: string
+  query_params?: string
   body_template?: string
   description?: string
   account_type?: string

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"text/template"
 	"time"
@@ -31,6 +32,7 @@ type CreatePushTemplateRequest struct {
 	URL          string `json:"url"`
 	Method       string `json:"method"`
 	Headers      string `json:"headers"`
+	QueryParams  string `json:"query_params"`
 	BodyTemplate string `json:"body_template"`
 	Description  string `json:"description"`
 	AccountType  string `json:"account_type"`
@@ -41,6 +43,7 @@ type UpdatePushTemplateRequest struct {
 	URL          string `json:"url"`
 	Method       string `json:"method"`
 	Headers      string `json:"headers"`
+	QueryParams  string `json:"query_params"`
 	BodyTemplate string `json:"body_template"`
 	Description  string `json:"description"`
 	Enabled      bool   `json:"enabled"`
@@ -70,6 +73,7 @@ func (s *PushTemplateService) Create(req CreatePushTemplateRequest) (*model.Push
 		URL:          req.URL,
 		Method:       method,
 		Headers:      req.Headers,
+		QueryParams:  req.QueryParams,
 		BodyTemplate: req.BodyTemplate,
 		Description:  req.Description,
 		AccountType:  req.AccountType,
@@ -95,6 +99,7 @@ func (s *PushTemplateService) Update(id uint, req UpdatePushTemplateRequest) (*m
 	t.URL = req.URL
 	t.Method = method
 	t.Headers = req.Headers
+	t.QueryParams = req.QueryParams
 	t.BodyTemplate = req.BodyTemplate
 	t.Description = req.Description
 	t.Enabled = req.Enabled
@@ -209,7 +214,26 @@ func (s *PushTemplateService) PushAccountByID(accountID, templateID uint) (int, 
 		body = strings.NewReader(rendered)
 	}
 
-	req, err := http.NewRequest(method, tmpl.URL, body)
+	targetURL := tmpl.URL
+	if tmpl.QueryParams != "" {
+		var rawParams map[string]string
+		if jsonErr := json.Unmarshal([]byte(tmpl.QueryParams), &rawParams); jsonErr == nil {
+			if parsedURL, urlErr := url.Parse(targetURL); urlErr == nil {
+				q := parsedURL.Query()
+				for k, v := range rawParams {
+					if rv, rErr := renderTemplate(v, data); rErr == nil {
+						q.Set(k, rv)
+					} else {
+						q.Set(k, v)
+					}
+				}
+				parsedURL.RawQuery = q.Encode()
+				targetURL = parsedURL.String()
+			}
+		}
+	}
+
+	req, err := http.NewRequest(method, targetURL, body)
 	if err != nil {
 		return 0, "", err
 	}
@@ -244,7 +268,28 @@ func executePush(client *http.Client, tmpl model.PushTemplate, data map[string]i
 		body = strings.NewReader(rendered)
 	}
 
-	req, err := http.NewRequest(method, tmpl.URL, body)
+	// Append query parameters (also support Go template variables in values).
+	targetURL := tmpl.URL
+	if tmpl.QueryParams != "" {
+		var rawParams map[string]string
+		if jsonErr := json.Unmarshal([]byte(tmpl.QueryParams), &rawParams); jsonErr == nil {
+			parsedURL, urlErr := url.Parse(targetURL)
+			if urlErr == nil {
+				q := parsedURL.Query()
+				for k, v := range rawParams {
+					if rendered, rErr := renderTemplate(v, data); rErr == nil {
+						q.Set(k, rendered)
+					} else {
+						q.Set(k, v)
+					}
+				}
+				parsedURL.RawQuery = q.Encode()
+				targetURL = parsedURL.String()
+			}
+		}
+	}
+
+	req, err := http.NewRequest(method, targetURL, body)
 	if err != nil {
 		return err
 	}
