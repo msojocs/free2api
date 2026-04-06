@@ -11,6 +11,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_SERVER: ghcr.io/${{ github.repository }}/server
   IMAGE_WEB: ghcr.io/${{ github.repository }}/web
+  IMAGE_TOKEN_SERVER: ghcr.io/${{ github.repository }}/token-server
 
 jobs:
   build-and-publish:
@@ -40,6 +41,17 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_WEB }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+      - name: Extract Docker metadata (token-server)
+        id: meta-token-server
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_TOKEN_SERVER }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -80,6 +92,18 @@ jobs:
           labels: ${{ steps.meta-web.outputs.labels }}
           cache-from: type=gha,scope=web-release
           cache-to: type=gha,mode=max,scope=web-release
+
+      # ── Token-server image ────────────────────────────────────────────────────
+      - name: Build & push token-server image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./third_party/openai
+          file: ./third_party/openai/Dockerfile
+          push: true
+          tags: ${{ steps.meta-token-server.outputs.tags }}
+          labels: ${{ steps.meta-token-server.outputs.labels }}
+          cache-from: type=gha,scope=token-server-release
+          cache-to: type=gha,mode=max,scope=token-server-release
 
       # ── GitHub release ───────────────────────────────────────────────────────
       - name: Create GitHub release
