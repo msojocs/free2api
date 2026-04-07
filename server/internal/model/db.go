@@ -55,10 +55,11 @@ func SeedPushTemplate(db *gorm.DB) {
 	cpa := &PushTemplate{
 		Name:         "CLIProxyAPI (CPA)",
 		Enabled:      false,
-		URL:          "http://localhost:3000/api/accounts",
+		URL:          "http://127.0.0.1:8317/v0/management/auth-files",
 		Method:       "POST",
 		Headers:      `{"Content-Type": "application/json"}`,
-		BodyTemplate: `{"type": "{{.type}}", "email": "{{.email}}", "password": "{{.password}}", "token": "{{.extra}}"}`,
+		QueryParams:  `{"name": "{{.email}}.json"}`,
+		BodyTemplate: `{"type": "codex", "email": "{{.email}}", "expired": "{{.extra.expire_time}}", "id_token": "{{.extra.id_token}}", "account_id": "{{.extra.account_id}}", "access_token": "{{.extra.access_token}}", "last_refresh": "{{.extra.last_refresh}}", "refresh_token": "{{.extra.refresh_token}}"}`,
 		Description:  "Built-in CPA (CLIProxyAPI) push template. Set the URL to your CLIProxyAPI instance and enable it.",
 		IsSystem:     true,
 		AccountType:  "",
