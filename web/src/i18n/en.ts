@@ -157,6 +157,8 @@ const en = {
     checkInvalid: 'Account is invalid: {{message}}',
     checkUnsupported: 'Account check is not supported for this type yet',
     checkFailed: 'Failed to check account: {{message}}',
+    checkFailedUnknown: 'Unknown error',
+    checkErrorPopoverTitle: 'Check failure reason',
     deleteConfirm: 'Delete this account?',
     deleted: 'Account deleted',
     failedToDelete: 'Failed to delete account',

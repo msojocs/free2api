@@ -157,6 +157,8 @@ const zh = {
     checkInvalid: '账号无效：{{message}}',
     checkUnsupported: '该类型账号暂不支持检测',
     checkFailed: '账号检测失败：{{message}}',
+    checkFailedUnknown: '未知错误',
+    checkErrorPopoverTitle: '检测失败原因',
     deleteConfirm: '确定删除此账号？',
     deleted: '账号已删除',
     failedToDelete: '删除账号失败',

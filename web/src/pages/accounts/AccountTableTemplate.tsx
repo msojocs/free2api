@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, type Key, type ReactNode } from 'react'
-import { Table, Button, Space, Select, Typography, message, Dropdown, Popconfirm } from 'antd'
+import { Table, Button, Space, Select, Typography, message, Dropdown, Popconfirm, Popover } from 'antd'
 import { DownloadOutlined, ReloadOutlined, UploadOutlined, SafetyOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { MenuProps } from 'antd'
@@ -18,6 +18,11 @@ interface AccountTableTemplateProps {
   renderExtraActions?: (record: Account) => ReactNode
 }
 
+interface CheckResult {
+  status: 'success' | 'failed'
+  message?: string
+}
+
 export default function AccountTableTemplate({
   title,
   accountType,
@@ -34,7 +39,7 @@ export default function AccountTableTemplate({
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [batchChecking, setBatchChecking] = useState(false)
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  const [checkStatusMap, setCheckStatusMap] = useState<Record<number, 'success' | 'failed'>>({})
+  const [checkResultMap, setCheckResultMap] = useState<Record<number, CheckResult>>({})
   const { t } = useTranslation()
 
   const statusOptions = [
@@ -114,23 +119,26 @@ export default function AccountTableTemplate({
         const { data } = await checkAccount(account.id)
         if (!data.supported) {
           message.warning(t('accounts.checkUnsupported'))
+          setCheckResultMap((prev) => {
+            const next = { ...prev }
+            delete next[account.id]
+            return next
+          })
           return false
         }
         if (data.valid) {
-          setCheckStatusMap((prev) => ({ ...prev, [account.id]: 'success' }))
+          setCheckResultMap((prev) => ({ ...prev, [account.id]: { status: 'success' } }))
           message.success(t('accounts.checkSuccess'))
           return true
         }
-        setCheckStatusMap((prev) => ({ ...prev, [account.id]: 'failed' }))
-        message.error(t('accounts.checkInvalid', { message: data.message }))
+        const errorMessage = data.message || t('accounts.checkFailedUnknown')
+        setCheckResultMap((prev) => ({ ...prev, [account.id]: { status: 'failed', message: errorMessage } }))
+        message.error(t('accounts.checkInvalid', { message: errorMessage }))
         return false
       } catch (err) {
-        setCheckStatusMap((prev) => ({ ...prev, [account.id]: 'failed' }))
-        message.error(
-          t('accounts.checkFailed', {
-            message: err instanceof Error ? err.message : 'unknown error',
-          }),
-        )
+        const errorMessage = err instanceof Error ? err.message : t('accounts.checkFailedUnknown')
+        setCheckResultMap((prev) => ({ ...prev, [account.id]: { status: 'failed', message: errorMessage } }))
+        message.error(t('accounts.checkFailed', { message: errorMessage }))
         return false
       } finally {
         setCheckingId(null)
@@ -152,7 +160,9 @@ export default function AccountTableTemplate({
       for (const account of selectedAccounts) {
         // Run sequentially to avoid overwhelming upstream APIs.
         const ok = await handleCheckAccount(account)
-        if (ok) successCount += 1
+        if (ok) {
+          successCount += 1
+        }
       }
       message.info(
         t('accounts.batchCheckSummary', {
@@ -218,24 +228,36 @@ export default function AccountTableTemplate({
             onClick: () => void handlePushToTemplate(record, tmpl.id, tmpl.name),
           }))
 
-          const checkStatus = checkStatusMap[record.id]
+          const checkResult = checkResultMap[record.id]
+          const checkStatus = checkResult?.status
           const checkButtonStyle = checkStatus === 'success'
             ? { backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' }
             : checkStatus === 'failed'
               ? { backgroundColor: '#ff4d4f', borderColor: '#ff4d4f', color: '#fff' }
               : undefined
+          const checkButton = (
+            <Button
+              size="small"
+              icon={<SafetyOutlined />}
+              loading={checkingId === record.id}
+              onClick={() => void handleCheckAccount(record)}
+              style={checkButtonStyle}
+            >
+              {t('accounts.check')}
+            </Button>
+          )
 
           return (
             <Space>
-              <Button
-                size="small"
-                icon={<SafetyOutlined />}
-                loading={checkingId === record.id}
-                onClick={() => void handleCheckAccount(record)}
-                style={checkButtonStyle}
-              >
-                {t('accounts.check')}
-              </Button>
+              {checkStatus === 'failed' && checkResult?.message ? (
+                <Popover
+                  title={t('accounts.checkErrorPopoverTitle')}
+                  content={checkResult.message}
+                  trigger={['hover', 'click']}
+                >
+                  {checkButton}
+                </Popover>
+              ) : checkButton}
               {renderExtraActions ? renderExtraActions(record) : null}
               <Dropdown
                 menu={{
@@ -273,7 +295,7 @@ export default function AccountTableTemplate({
     return baseColumns
   }, [
     checkingId,
-    checkStatusMap,
+    checkResultMap,
     deletingId,
     extraColumns,
     fetchAccounts,
