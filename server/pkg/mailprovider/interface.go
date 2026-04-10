@@ -15,7 +15,7 @@ import (
 type MailAccount struct {
 	Email     string
 	AccountID string
-	Token     string            // bearer JWT for the per-address session
+	Token     string
 	Extra     map[string]string // provider-specific metadata
 }
 
@@ -95,6 +95,8 @@ func New(providerType string, config map[string]string) (Provider, error) {
 		return NewLinshiyouxiang(config), nil
 	case "tempmailorg", "tempmail_org":
 		return NewTempMailOrg(config), nil
+	case "secemail", "1secemail", "1secmail", "1sec":
+		return NewSeceMail(config), nil
 	default:
 		return nil, fmt.Errorf("mailprovider: unknown provider type %q (supported: mailtm, duckmail, cfworker, tempmail, moemail, freemail, laoudo, maliapi, luckmail, linshiyouxiang, tempmailorg)", providerType)
 	}

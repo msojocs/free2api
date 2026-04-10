@@ -346,6 +346,7 @@ const zh = {
       luckmail: 'LuckMail',
       linshiyouxiang: '临时邮箱',
       tempmailorg: 'TempMail.org',
+      secemail: 'SecEmail',
     },
   },
 } as const

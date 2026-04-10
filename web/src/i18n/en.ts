@@ -346,6 +346,7 @@ const en = {
       luckmail: 'LuckMail',
       linshiyouxiang: 'Linshiyouxiang',
       tempmailorg: 'TempMail.org',
+      secemail: 'SecEmail',
     },
   },
 } as const
