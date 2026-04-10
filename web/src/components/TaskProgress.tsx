@@ -64,6 +64,8 @@ function progressColorByFailureRate(stats: BatchStats | null): string {
   return `rgb(${r}, ${g}, ${b})`
 }
 
+const SCROLL_BOTTOM_THRESHOLD_PX = 8
+
 export default function TaskProgress({ taskId, taskStatus, open, onClose }: TaskProgressProps) {
   const [percent, setPercent] = useState(0)
   const [logs, setLogs] = useState<TaskProgressLog[]>([])
@@ -71,6 +73,7 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
   const token = useAuthStore((s) => s.token)
   const abortRef = useRef<AbortController | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
+  const logsContainerRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -184,7 +187,12 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
   }, [open, taskId, taskStatus, token])
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = logsContainerRef.current
+    if (!container) return
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= SCROLL_BOTTOM_THRESHOLD_PX
+    if (isAtBottom) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [logs])
 
   function handleClose() {
@@ -204,6 +212,7 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
     >
       <Progress percent={percent} strokeColor={progressColor} style={{ marginBottom: 16 }} />
       <div
+        ref={logsContainerRef}
         style={{
           height: 240,
           overflowY: 'auto',
