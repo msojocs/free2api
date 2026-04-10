@@ -70,7 +70,9 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
   const [batchStats, setBatchStats] = useState<BatchStats | null>(null)
   const token = useAuthStore((s) => s.token)
   const abortRef = useRef<AbortController | null>(null)
+  const logsContainerRef = useRef<HTMLDivElement>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
+  const shouldFollowLogsRef = useRef(true)
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -78,7 +80,8 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
 
     setPercent(0)
     setLogs([])
-  setBatchStats(null)
+    setBatchStats(null)
+    shouldFollowLogsRef.current = true
 
     const controller = new AbortController()
     abortRef.current = controller
@@ -184,8 +187,20 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
   }, [open, taskId, taskStatus, token])
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!shouldFollowLogsRef.current) {
+      return
+    }
+    logsEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
   }, [logs])
+
+  function handleLogsScroll() {
+    const container = logsContainerRef.current
+    if (!container) {
+      return
+    }
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    shouldFollowLogsRef.current = distanceToBottom <= 8
+  }
 
   function handleClose() {
     abortRef.current?.abort()
@@ -204,6 +219,8 @@ export default function TaskProgress({ taskId, taskStatus, open, onClose }: Task
     >
       <Progress percent={percent} strokeColor={progressColor} style={{ marginBottom: 16 }} />
       <div
+        ref={logsContainerRef}
+        onScroll={handleLogsScroll}
         style={{
           height: 240,
           overflowY: 'auto',
