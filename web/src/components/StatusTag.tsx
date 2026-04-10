@@ -3,7 +3,7 @@ import { Tag } from 'antd'
 const colorMap: Record<string, string> = {
   active: 'green',
   running: 'blue',
-  pending: 'gold',
+  expired: 'gold',
   paused: 'orange',
   completed: 'cyan',
   failed: 'red',

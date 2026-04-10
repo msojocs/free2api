@@ -16,6 +16,7 @@ interface AccountTableTemplateProps {
   extraColumns?: ColumnsType<Account>
   hideTypeColumn?: boolean
   renderExtraActions?: (record: Account) => ReactNode
+  renderEmail?: (record: Account) => ReactNode
 }
 
 interface CheckResult {
@@ -29,6 +30,7 @@ export default function AccountTableTemplate({
   extraColumns,
   hideTypeColumn = false,
   renderExtraActions,
+  renderEmail,
 }: AccountTableTemplateProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(false)
@@ -127,11 +129,22 @@ export default function AccountTableTemplate({
           return false
         }
         if (data.valid) {
+          if (typeof data.status === 'string' && data.status) {
+            setAccounts((prev) => prev.map((item) => (item.id === account.id ? { ...item, status: data.status as string } : item)))
+          }
+          if (data.usage && typeof data.usage === 'object') {
+            setAccounts((prev) =>
+              prev.map((item) => (item.id === account.id ? { ...item, usage: data.usage } : item)),
+            )
+          }
           setCheckResultMap((prev) => ({ ...prev, [account.id]: { status: 'success' } }))
           message.success(t('accounts.checkSuccess'))
           return true
         }
         const errorMessage = data.message || t('accounts.checkFailedUnknown')
+        if (typeof data.status === 'string' && data.status) {
+          setAccounts((prev) => prev.map((item) => (item.id === account.id ? { ...item, status: data.status as string } : item)))
+        }
         setCheckResultMap((prev) => ({ ...prev, [account.id]: { status: 'failed', message: errorMessage } }))
         message.error(t('accounts.checkInvalid', { message: errorMessage }))
         return false
@@ -193,7 +206,14 @@ export default function AccountTableTemplate({
   )
 
   const columns: ColumnsType<Account> = useMemo(() => {
-    const baseColumns: ColumnsType<Account> = [{ title: t('common.email'), dataIndex: 'email', key: 'email' }]
+    const baseColumns: ColumnsType<Account> = [
+      {
+        title: t('common.email'),
+        dataIndex: 'email',
+        key: 'email',
+        render: (_, record) => (renderEmail ? renderEmail(record) : record.email),
+      },
+    ]
 
     if (!hideTypeColumn) {
       baseColumns.push({ title: t('common.type'), dataIndex: 'type', key: 'type' })
@@ -252,7 +272,11 @@ export default function AccountTableTemplate({
               {checkStatus === 'failed' && checkResult?.message ? (
                 <Popover
                   title={t('accounts.checkErrorPopoverTitle')}
-                  content={checkResult.message}
+                  content={(
+                    <div style={{ maxWidth: 320, display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      {checkResult.message}
+                    </div>
+                  )}
                   trigger={['hover', 'click']}
                 >
                   {checkButton}
@@ -306,6 +330,7 @@ export default function AccountTableTemplate({
     hideTypeColumn,
     pushingKey,
     renderExtraActions,
+    renderEmail,
     t,
     templatesByType,
   ])

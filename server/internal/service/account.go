@@ -78,6 +78,8 @@ type AccountCheckResult struct {
 	Supported bool   `json:"supported"`
 	Valid     bool   `json:"valid"`
 	Message   string `json:"message"`
+	Status    string `json:"status,omitempty"`
+	Usage     any    `json:"usage,omitempty"`
 }
 
 type ChatGPTRefreshTokenResult struct {
@@ -152,17 +154,48 @@ func (s *AccountService) checkChatGPTAccount(_ context.Context, account *model.A
 	}
 
 	if _, err := client.CheckAccount(); err != nil {
+		account.Status = deriveFailedStatus(err)
+		if updateErr := s.repo.Update(account); updateErr != nil {
+			return nil, updateErr
+		}
 		return &AccountCheckResult{
 			Supported: true,
 			Valid:     false,
 			Message:   fmt.Sprintf("account check failed: %v", err),
+			Status:    account.Status,
 		}, nil
+	}
+
+	usageResp, err := client.QueryUsage()
+	if err != nil {
+		account.Status = deriveFailedStatus(err)
+		if updateErr := s.repo.Update(account); updateErr != nil {
+			return nil, updateErr
+		}
+		return &AccountCheckResult{
+			Supported: true,
+			Valid:     false,
+			Message:   fmt.Sprintf("account check passed but usage query failed: %v", err),
+			Status:    account.Status,
+		}, nil
+	}
+
+	usageMap, err := usageResponseToMap(usageResp)
+	if err != nil {
+		return nil, err
+	}
+	account.Status = "active"
+	account.Usage = usageMap
+	if err := s.repo.Update(account); err != nil {
+		return nil, err
 	}
 
 	return &AccountCheckResult{
 		Supported: true,
 		Valid:     true,
 		Message:   "access token is valid",
+		Status:    account.Status,
+		Usage:     usageMap,
 	}, nil
 }
 
@@ -340,6 +373,44 @@ func extractChatGPTAccountIDFromAccessToken(accessToken string) string {
 	}
 	accountID, _ := authData["chatgpt_account_id"].(string)
 	return strings.TrimSpace(accountID)
+}
+
+func usageResponseToMap(usageResp *openai.CodexUsageResponse) (model.JSONMap, error) {
+	if usageResp == nil {
+		return model.JSONMap{}, nil
+	}
+	metric := "rate_limit"
+	usedPercent := usageResp.RateLimit.PrimaryWindow.UsedPercent
+	limitReached := usageResp.RateLimit.LimitReached
+	allowed := usageResp.RateLimit.Allowed
+	limitWindowSeconds := usageResp.RateLimit.PrimaryWindow.LimitWindowSeconds
+	resetAfterSeconds := usageResp.RateLimit.PrimaryWindow.ResetAfterSeconds
+	resetAt := usageResp.RateLimit.PrimaryWindow.ResetAt
+
+	return model.JSONMap{
+		"metric":               metric,
+		"used_percent":         usedPercent,
+		"limit_reached":        limitReached,
+		"allowed":              allowed,
+		"limit_window_seconds": limitWindowSeconds,
+		"reset_after_seconds":  resetAfterSeconds,
+		"reset_at":             resetAt,
+	}, nil
+}
+
+func deriveFailedStatus(err error) string {
+	if err == nil {
+		return "pending"
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "403") ||
+		strings.Contains(msg, "forbidden") ||
+		strings.Contains(msg, "banned") ||
+		strings.Contains(msg, "suspended") ||
+		strings.Contains(msg, "deactivated") {
+		return "banned"
+	}
+	return "expired"
 }
 
 func (s *AccountService) resolveAccountActionProxy() (string, error) {

@@ -164,6 +164,8 @@ const zh = {
     failedToDelete: '删除账号失败',
     accountId: '账号 ID',
     accessTokenExpiresAt: 'AccessToken 到期时间',
+    usage: '使用情况',
+    resetTime: '重置时间',
     cursorToken: 'Cursor Token',
     upload: '上传',
     uploadTo: '上传到 {{name}}',

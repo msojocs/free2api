@@ -164,6 +164,8 @@ const en = {
     failedToDelete: 'Failed to delete account',
     accountId: 'Account ID',
     accessTokenExpiresAt: 'AccessToken Expires At',
+    usage: 'Usage',
+    resetTime: 'Reset Time',
     cursorToken: 'Cursor Token',
     upload: 'Upload',
     uploadTo: 'Upload to {{name}}',

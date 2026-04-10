@@ -6,6 +6,7 @@ export interface Account {
   type: string
   status: string
   extra?: string
+  usage?: Record<string, unknown>
   task_batch_id: number
   created_at: string
 }
@@ -25,6 +26,8 @@ export interface AccountCheckResult {
   supported: boolean
   valid: boolean
   message: string
+  status?: string
+  usage?: Record<string, unknown>
 }
 
 export function checkAccount(id: number) {
