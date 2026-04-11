@@ -80,6 +80,17 @@ func cfgStr(config map[string]interface{}, key, def string) string {
 	return def
 }
 
+// cfgBool extracts a bool from a config map. Returns def when the key is absent
+// or holds a non-bool value. JSON-decoded configs carry booleans as bool.
+func cfgBool(config map[string]interface{}, key string, def bool) bool {
+	if v, ok := config[key]; ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return def
+}
+
 // safeRandInt returns a cryptographically random integer in [0, n).
 func safeRandInt(n int) int64 {
 	v, _ := rand.Int(rand.Reader, big.NewInt(int64(n)))

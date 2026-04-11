@@ -50,8 +50,9 @@ func NewLinshiyouxiang(config map[string]string) *LinshiyouxiangProvider {
 	return &LinshiyouxiangProvider{
 		apiURL: strings.TrimRight(u, "/"),
 		client: &http.Client{
-			Timeout: 25 * time.Second,
-			Jar:     jar,
+			Timeout:   25 * time.Second,
+			Jar:       jar,
+			Transport: buildTransport(config["proxy_url"]),
 		},
 	}
 }

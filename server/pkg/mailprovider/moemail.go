@@ -23,7 +23,8 @@ import (
 //
 //	api_url – base URL (default: https://sall.cc)
 type MoeMailProvider struct {
-	apiURL string
+	apiURL   string
+	proxyURL string
 }
 
 const defaultMoeMailURL = "https://sall.cc"
@@ -34,7 +35,10 @@ func NewMoeMail(config map[string]string) *MoeMailProvider {
 	if u == "" {
 		u = defaultMoeMailURL
 	}
-	return &MoeMailProvider{apiURL: strings.TrimRight(u, "/")}
+	return &MoeMailProvider{
+		apiURL:   strings.TrimRight(u, "/"),
+		proxyURL: config["proxy_url"],
+	}
 }
 
 // moeSession holds a per-request authenticated HTTP session.
@@ -43,15 +47,16 @@ type moeSession struct {
 	apiURL string
 }
 
-func newMoeSession(apiURL string) (*moeSession, error) {
+func newMoeSession(apiURL, proxyURL string) (*moeSession, error) {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		return nil, err
 	}
 	return &moeSession{
 		client: &http.Client{
-			Jar:     jar,
-			Timeout: 20 * time.Second,
+			Jar:       jar,
+			Timeout:   20 * time.Second,
+			Transport: buildTransport(proxyURL),
 		},
 		apiURL: apiURL,
 	}, nil
@@ -186,7 +191,7 @@ func (s *moeSession) createEmail(ctx context.Context) (*MailAccount, error) {
 
 // GetEmail registers a new MoeMail account and creates a temporary email address.
 func (p *MoeMailProvider) GetEmail(ctx context.Context) (*MailAccount, error) {
-	sess, err := newMoeSession(p.apiURL)
+	sess, err := newMoeSession(p.apiURL, p.proxyURL)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +263,7 @@ func (p *MoeMailProvider) WaitForCode(ctx context.Context, account *MailAccount,
 	// The correct usage is to call GetEmail/WaitForCode in the same registration flow
 	// where the session is maintained via the executor context.
 	// As a workaround, we attempt to poll without auth (some endpoints may be public).
-	sess, err := newMoeSession(p.apiURL)
+	sess, err := newMoeSession(p.apiURL, p.proxyURL)
 	if err != nil {
 		return "", fmt.Errorf("moemail: session: %w", err)
 	}
@@ -297,7 +302,7 @@ func (p *MoeMailProvider) WaitForCode(ctx context.Context, account *MailAccount,
 
 // WaitForLink polls the MoeMail inbox for a verification link.
 func (p *MoeMailProvider) WaitForLink(ctx context.Context, account *MailAccount, keyword string, timeoutSec int) (string, error) {
-	sess, err := newMoeSession(p.apiURL)
+	sess, err := newMoeSession(p.apiURL, p.proxyURL)
 	if err != nil {
 		return "", fmt.Errorf("moemail: session: %w", err)
 	}

@@ -39,7 +39,7 @@ func NewMaliAPI(config map[string]string) *MaliAPIProvider {
 		apiURL: strings.TrimRight(u, "/"),
 		apiKey: config["api_key"],
 		domain: config["domain"],
-		client: &http.Client{Timeout: 20 * time.Second},
+		client: &http.Client{Timeout: 20 * time.Second, Transport: buildTransport(config["proxy_url"])},
 	}
 }
 

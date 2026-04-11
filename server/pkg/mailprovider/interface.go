@@ -7,6 +7,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -105,6 +107,20 @@ func New(providerType string, config map[string]string) (Provider, error) {
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+// buildTransport returns an *http.Transport configured with proxyURL.
+// If proxyURL is empty or cannot be parsed, nil is returned (callers should
+// treat nil as http.DefaultTransport).
+func buildTransport(proxyURL string) *http.Transport {
+	if proxyURL == "" {
+		return nil
+	}
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil
+	}
+	return &http.Transport{Proxy: http.ProxyURL(u)}
+}
 
 var (
 	codeRe = regexp.MustCompile(`\b(\d{6,8})\b`)

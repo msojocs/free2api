@@ -19,6 +19,7 @@ import (
 //	api_url – base URL; defaults to https://api.duckmail.sbs
 type MailTmProvider struct {
 	apiURL string
+	client *http.Client
 }
 
 const defaultMailTmURL = "https://api.duckmail.sbs"
@@ -30,7 +31,10 @@ func NewMailTm(config map[string]string) *MailTmProvider {
 	if u == "" {
 		u = defaultMailTmURL
 	}
-	return &MailTmProvider{apiURL: strings.TrimRight(u, "/")}
+	return &MailTmProvider{
+		apiURL: strings.TrimRight(u, "/"),
+		client: &http.Client{Timeout: 20 * time.Second, Transport: buildTransport(config["proxy_url"])},
+	}
 }
 
 func (p *MailTmProvider) doGet(ctx context.Context, path, token string) ([]byte, error) {
@@ -42,7 +46,7 @@ func (p *MailTmProvider) doGet(ctx context.Context, path, token string) ([]byte,
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +65,7 @@ func (p *MailTmProvider) doPost(ctx context.Context, path string, payload interf
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}

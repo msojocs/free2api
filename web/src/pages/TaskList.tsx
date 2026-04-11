@@ -10,6 +10,7 @@ import {
   Select,
   Steps,
   Space,
+  Switch,
   Typography,
   Popconfirm,
   DatePicker,
@@ -36,6 +37,7 @@ type WizardValues = {
   total?: number
   proxy_group_id?: number | ''
   temp_mail_provider_id?: number | ''
+  mail_use_proxy?: boolean
   concurrency?: number
   interval_seconds?: number
   scheduled_at?: dayjs.Dayjs
@@ -105,6 +107,7 @@ export default function TaskList() {
     const initialValues: WizardValues = {
       concurrency: 5,
       interval_seconds: 5,
+      mail_use_proxy: true,
     }
     setCurrentStep(0)
     setWizardValues(initialValues)
@@ -124,6 +127,7 @@ export default function TaskList() {
       try {
         const cfg: Record<string, unknown> = {
           proxy_group_id: merged.proxy_group_id,
+          mail_use_proxy: merged.mail_use_proxy !== false,
           concurrency: merged.concurrency ?? 5,
           interval_seconds: merged.interval_seconds ?? 5,
           scheduled_at: merged.scheduled_at?.toISOString(),
@@ -380,6 +384,9 @@ export default function TaskList() {
                   placeholder={t('tasks.proxyGroupPlaceholder')}
                   options={proxyGroups.map((group) => ({ value: group.id, label: group.name }))}
                 />
+              </Form.Item>
+              <Form.Item name="mail_use_proxy" label={t('tasks.mailUseProxy')} valuePropName="checked">
+                <Switch />
               </Form.Item>
             </>
           )}

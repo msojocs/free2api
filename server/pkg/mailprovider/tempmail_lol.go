@@ -33,7 +33,7 @@ func NewTempMailLol(config map[string]string) *TempMailLolProvider {
 	}
 	return &TempMailLolProvider{
 		apiURL: strings.TrimRight(u, "/"),
-		client: &http.Client{Timeout: 20 * time.Second},
+		client: &http.Client{Timeout: 20 * time.Second, Transport: buildTransport(config["proxy_url"])},
 	}
 }
 

@@ -32,6 +32,7 @@ type FreemailProvider struct {
 	adminToken string
 	username   string
 	password   string
+	proxyURL   string
 }
 
 // NewFreemail returns a FreemailProvider.
@@ -41,6 +42,7 @@ func NewFreemail(config map[string]string) *FreemailProvider {
 		adminToken: config["admin_token"],
 		username:   config["username"],
 		password:   config["password"],
+		proxyURL:   config["proxy_url"],
 	}
 }
 
@@ -51,13 +53,13 @@ type freemailSession struct {
 	adminToken string
 }
 
-func newFreemailSession(apiURL, adminToken, username, password string) (*freemailSession, error) {
+func newFreemailSession(apiURL, adminToken, username, password, proxyURL string) (*freemailSession, error) {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		return nil, err
 	}
 	s := &freemailSession{
-		client:     &http.Client{Jar: jar, Timeout: 20 * time.Second},
+		client:     &http.Client{Jar: jar, Timeout: 20 * time.Second, Transport: buildTransport(proxyURL)},
 		apiURL:     apiURL,
 		adminToken: adminToken,
 	}
@@ -114,7 +116,7 @@ func (p *FreemailProvider) GetEmail(ctx context.Context) (*MailAccount, error) {
 	if p.apiURL == "" {
 		return nil, fmt.Errorf("freemail: api_url is required")
 	}
-	sess, err := newFreemailSession(p.apiURL, p.adminToken, p.username, p.password)
+	sess, err := newFreemailSession(p.apiURL, p.adminToken, p.username, p.password, p.proxyURL)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +148,7 @@ func (m *freemailMsg) fullText() string {
 }
 
 func (p *FreemailProvider) listMessages(ctx context.Context, email string) ([]freemailMsg, error) {
-	sess, err := newFreemailSession(p.apiURL, p.adminToken, p.username, p.password)
+	sess, err := newFreemailSession(p.apiURL, p.adminToken, p.username, p.password, p.proxyURL)
 	if err != nil {
 		return nil, err
 	}

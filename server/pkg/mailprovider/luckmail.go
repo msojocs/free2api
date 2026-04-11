@@ -44,14 +44,14 @@ func NewLuckMail(config map[string]string) *LuckMailProvider {
 		apiKey:      config["api_key"],
 		projectCode: config["project_code"],
 		emailType:   config["email_type"],
-		client:      &http.Client{Timeout: 25 * time.Second},
+		client:      &http.Client{Timeout: 25 * time.Second, Transport: buildTransport(config["proxy_url"])},
 	}
 }
 
 func (p *LuckMailProvider) authHeaders() map[string]string {
 	return map[string]string{
-		"Accept":       "application/json",
-		"Content-Type": "application/json",
+		"Accept":        "application/json",
+		"Content-Type":  "application/json",
 		"Authorization": "Bearer " + p.apiKey,
 	}
 }

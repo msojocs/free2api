@@ -23,6 +23,7 @@ type CFWorkerProvider struct {
 	apiURL     string
 	adminToken string
 	domain     string
+	client     *http.Client
 }
 
 // NewCFWorker returns a CFWorkerProvider.
@@ -31,6 +32,7 @@ func NewCFWorker(config map[string]string) *CFWorkerProvider {
 		apiURL:     strings.TrimRight(config["api_url"], "/"),
 		adminToken: config["admin_token"],
 		domain:     config["domain"],
+		client:     &http.Client{Timeout: 20 * time.Second, Transport: buildTransport(config["proxy_url"])},
 	}
 }
 
@@ -53,7 +55,7 @@ func (p *CFWorkerProvider) newRequest(ctx context.Context, method, path string, 
 	} else if p.adminToken != "" {
 		req.Header.Set("x-custom-auth", p.adminToken)
 	}
-	return http.DefaultClient.Do(req)
+	return p.client.Do(req)
 }
 
 func (p *CFWorkerProvider) do(ctx context.Context, method, path string, payload interface{}, bearerToken string) ([]byte, error) {

@@ -98,6 +98,7 @@ const en = {
     tempMailProvider: 'Temp Mail Provider',
     selectTempMailProvider: 'Select provider (optional)',
     noTempMailProvider: 'None (use direct config)',
+    mailUseProxy: 'Mail Service Uses Proxy',
     concurrency: 'Concurrency',
     intervalSeconds: 'Interval (seconds)',
     scheduledTime: 'Scheduled Time (optional)',

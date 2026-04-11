@@ -35,7 +35,7 @@ func NewLaoudo(config map[string]string) *LaoudoProvider {
 		authToken: config["auth_token"],
 		email:     config["email"],
 		accountID: config["account_id"],
-		client:    &http.Client{Timeout: 20 * time.Second},
+		client:    &http.Client{Timeout: 20 * time.Second, Transport: buildTransport(config["proxy_url"])},
 	}
 }
 
@@ -55,11 +55,11 @@ func (p *LaoudoProvider) GetEmail(_ context.Context) (*MailAccount, error) {
 }
 
 func (p *LaoudoProvider) listMessages(ctx context.Context, accountID string) ([]struct {
-	ID       interface{} `json:"id"`
-	EmailID  interface{} `json:"emailId"`
-	Subject  string      `json:"subject"`
-	Content  string      `json:"content"`
-	HTML     string      `json:"html"`
+	ID      interface{} `json:"id"`
+	EmailID interface{} `json:"emailId"`
+	Subject string      `json:"subject"`
+	Content string      `json:"content"`
+	HTML    string      `json:"html"`
 }, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, laoudoAPIBase+"/list", nil)
 	if err != nil {

@@ -98,6 +98,7 @@ const zh = {
     tempMailProvider: '临时邮箱服务',
     selectTempMailProvider: '选择服务（可选）',
     noTempMailProvider: '不使用（直接配置）',
+    mailUseProxy: '邮箱服务使用代理',
     concurrency: '并发数',
     intervalSeconds: '间隔时间（秒）',
     scheduledTime: '计划执行时间（可选）',

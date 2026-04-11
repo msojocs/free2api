@@ -226,6 +226,9 @@ func (e *TraeExecutor) Execute(ctx context.Context, taskID uint, config map[stri
 		"admin_token": cfgStr(config, "mail_admin_token", ""),
 		"domain":      cfgStr(config, "mail_domain", ""),
 	}
+	if cfgBool(config, "mail_use_proxy", true) {
+		mailCfg["proxy_url"] = proxyURL
+	}
 	mp, err := mailprovider.New(mailProviderType, mailCfg)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("Mail provider error: %v", err), "failed")

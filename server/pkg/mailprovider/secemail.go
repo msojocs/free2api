@@ -45,8 +45,9 @@ func NewSeceMail(config map[string]string) *SeceMailProvider {
 	return &SeceMailProvider{
 		apiURL: strings.TrimRight(u, "/"),
 		client: &http.Client{
-			Timeout: 20 * time.Second,
-			Jar:     jar,
+			Timeout:   20 * time.Second,
+			Jar:       jar,
+			Transport: buildTransport(config["proxy_url"]),
 		},
 	}
 }
