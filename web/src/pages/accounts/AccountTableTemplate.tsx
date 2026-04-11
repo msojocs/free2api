@@ -35,6 +35,9 @@ export default function AccountTableTemplate({
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 20
   const [templatesByType, setTemplatesByType] = useState<Record<string, PushTemplate[]>>({})
   const [pushingKey, setPushingKey] = useState<string | null>(null)
   const [checkingId, setCheckingId] = useState<number | null>(null)
@@ -61,24 +64,35 @@ export default function AccountTableTemplate({
     }
   }, [templatesByType])
 
-  const fetchAccounts = useCallback(async () => {
+  const fetchAccounts = useCallback(async (p?: number) => {
+    const currentPage = p ?? page
     setLoading(true)
     try {
       const { data } = await getAccounts({
         type: accountType || undefined,
         status: status || undefined,
+        page: currentPage,
+        limit: PAGE_SIZE,
       })
       setAccounts(data.accounts ?? [])
+      setTotal(data.total ?? 0)
     } catch {
       message.error(t('accounts.failedToLoad'))
     } finally {
       setLoading(false)
     }
-  }, [accountType, status, t])
+  }, [accountType, page, status, t])
 
   useEffect(() => {
-    void fetchAccounts()
-  }, [fetchAccounts])
+    setPage(1)
+    void fetchAccounts(1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountType, status])
+
+  useEffect(() => {
+    if (page !== 1) void fetchAccounts(page)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   const importFileRef = useRef<HTMLInputElement>(null)
 
@@ -405,7 +419,13 @@ export default function AccountTableTemplate({
           onChange: (keys) => setSelectedRowKeys(keys),
         }}
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          current: page,
+          pageSize: PAGE_SIZE,
+          total,
+          onChange: (p) => setPage(p),
+          showSizeChanger: false,
+        }}
         scroll={{ x: 'max-content' }}
       />
     </div>

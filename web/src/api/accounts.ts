@@ -11,7 +11,7 @@ export interface Account {
   created_at: string
 }
 
-export function getAccounts(params?: { type?: string; status?: string }) {
+export function getAccounts(params?: { type?: string; status?: string; page?: number; limit?: number }) {
   return api.get<{ accounts: Account[]; total: number }>('/accounts', { params })
 }
 
