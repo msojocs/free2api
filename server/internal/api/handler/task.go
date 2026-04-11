@@ -37,7 +37,6 @@ func (h *TaskHandler) List(c *gin.Context) {
 
 func (h *TaskHandler) Create(c *gin.Context) {
 	var req struct {
-		Name   string                 `json:"name" binding:"required"`
 		Type   string                 `json:"type" binding:"required"`
 		Total  int                    `json:"total" binding:"required,min=1"`
 		Config map[string]interface{} `json:"config"`
@@ -46,7 +45,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Fail(400, err.Error()))
 		return
 	}
-	task, err := h.svc.Create(req.Name, req.Type, req.Total, req.Config)
+	task, err := h.svc.Create(req.Type, req.Total, req.Config)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Fail(400, err.Error()))
 		return

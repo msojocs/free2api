@@ -20,7 +20,6 @@ export interface TaskProgressLog {
 }
 
 export interface CreateTaskPayload {
-  name: string
   type: string
   total: number
   config?: Record<string, unknown>

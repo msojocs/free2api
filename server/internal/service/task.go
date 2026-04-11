@@ -161,7 +161,7 @@ func (s *TaskService) List(page, limit int) ([]model.TaskBatch, int64, error) {
 	return s.repo.List(offset, limit)
 }
 
-func (s *TaskService) Create(name, taskType string, total int, config map[string]interface{}) (*model.TaskBatch, error) {
+func (s *TaskService) Create(taskType string, total int, config map[string]interface{}) (*model.TaskBatch, error) {
 	validTypes := map[string]bool{
 		"chatgpt": true,
 		"cursor":  true,
@@ -174,7 +174,7 @@ func (s *TaskService) Create(name, taskType string, total int, config map[string
 		return nil, fmt.Errorf("invalid task type: must be one of: chatgpt, cursor, trae, grok, tavily, kiro")
 	}
 	task := &model.TaskBatch{
-		Name:   name,
+		Name:   "",
 		Type:   taskType,
 		Status: model.TaskStatusPending,
 		Total:  total,

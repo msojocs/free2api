@@ -32,7 +32,6 @@ const PLATFORMS = [
 ]
 
 type WizardValues = {
-  name?: string
   type?: string
   total?: number
   proxy_group_id?: number | ''
@@ -134,7 +133,6 @@ export default function TaskList() {
           cfg.temp_mail_provider_id = merged.temp_mail_provider_id
         }
         await createTask({
-          name: merged.name!,
           type: merged.type!,
           total: merged.total!,
           config: cfg,
@@ -221,7 +219,7 @@ export default function TaskList() {
   }
 
   const columns: TableProps<TaskBatch>['columns'] = [
-    { title: t('common.name'), dataIndex: 'name', key: 'name' },
+    { title: t('common.id'), dataIndex: 'id', key: 'id' },
     { title: t('common.type'), dataIndex: 'type', key: 'type' },
     {
       title: t('common.status'),
@@ -353,9 +351,6 @@ export default function TaskList() {
                 rules={[{ required: true }]}
               >
                 <Select placeholder={t('tasks.selectPlatform')} options={PLATFORMS} />
-              </Form.Item>
-              <Form.Item name="name" label={t('tasks.taskName')} rules={[{ required: true }]}>
-                <Input placeholder={t('tasks.taskNamePlaceholder')} />
               </Form.Item>
               <Form.Item
                 name="total"
