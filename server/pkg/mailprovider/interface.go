@@ -99,6 +99,8 @@ func New(providerType string, config map[string]string) (Provider, error) {
 		return NewTempMailOrg(config), nil
 	case "secemail", "1secemail":
 		return NewSeceMail(config)
+	case "tmailor", "tmailor.com":
+		return NewTMailor(config)
 	default:
 		return nil, fmt.Errorf("mailprovider: unknown provider type %q (supported: mailtm, duckmail, cfworker, tempmail, moemail, freemail, laoudo, maliapi, luckmail, linshiyouxiang, tempmailorg)", providerType)
 	}
