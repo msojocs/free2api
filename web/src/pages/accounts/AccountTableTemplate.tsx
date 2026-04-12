@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type Key, type ReactNode } from 'react'
 import { Table, Button, Space, Select, Typography, message, Dropdown, Popconfirm, Popover } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined, SafetyOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, SafetyOutlined, MoreOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { MenuProps } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -329,16 +329,31 @@ export default function AccountTableTemplate({
                   {t('accounts.upload')}
                 </Button>
               </Dropdown>
-              <Popconfirm
-                title={t('accounts.deleteConfirm')}
-                onConfirm={() => void handleDeleteAccount(record.id)}
-                okText={t('common.yes')}
-                cancelText={t('common.no')}
+              <Dropdown
+                trigger={['click']}
+                menu={{
+                  items: [
+                    {
+                      key: 'delete',
+                      label: (
+                        <Popconfirm
+                          title={t('accounts.deleteConfirm')}
+                          onConfirm={() => void handleDeleteAccount(record.id)}
+                          okText={t('common.yes')}
+                          cancelText={t('common.no')}
+                        >
+                          <span style={{ color: '#ff4d4f' }}>
+                            <DeleteOutlined style={{ marginRight: 6 }} />
+                            {t('common.delete')}
+                          </span>
+                        </Popconfirm>
+                      ),
+                    },
+                  ],
+                }}
               >
-                <Button size="small" danger loading={deletingId === record.id}>
-                  {t('common.delete')}
-                </Button>
-              </Popconfirm>
+                <Button size="small" icon={<MoreOutlined />} loading={deletingId === record.id} />
+              </Dropdown>
             </Space>
           )
         },
