@@ -1,4 +1,4 @@
-# free2api — 账号管理系统
+# Auto Register — 账号管理系统
 
 > [English](README_EN.md)
 

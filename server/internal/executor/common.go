@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"math/big"
 
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
 )
 
 type Executor interface {

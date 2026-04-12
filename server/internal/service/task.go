@@ -13,11 +13,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/executor"
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
-	"github.com/msojocs/free2api/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/executor"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
 	"gorm.io/gorm"
 )
 

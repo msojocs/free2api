@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/msojocs/free2api/server/internal/model"
-	captchapkg "github.com/msojocs/free2api/server/pkg/captcha"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	captchapkg "github.com/msojocs/ai-auto-register/server/pkg/captcha"
 	"gorm.io/gorm"
 )
 
@@ -90,4 +90,3 @@ func (r *CaptchaResource) GetStats() map[string]interface{} {
 		"total_cost": totalCost,
 	}
 }
-

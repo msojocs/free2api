@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
-	"github.com/msojocs/free2api/server/pkg/mailprovider"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/pkg/mailprovider"
 )
 
 // TempMailProviderService manages temporary email provider configurations used

@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/msojocs/free2api/server/internal/service"
+	"github.com/msojocs/ai-auto-register/server/internal/service"
 )
 
 type ProxyHandler struct {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/msojocs/free2api/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
 	"gorm.io/gorm"
 )
 

@@ -1,4 +1,4 @@
-# free2api — Account Management System
+# Auto Register — Account Management System
 
 > [中文](README.md)
 

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
-	"github.com/msojocs/free2api/server/internal/resource"
-	"github.com/msojocs/free2api/server/pkg/crypto"
-	"github.com/msojocs/free2api/server/pkg/openai"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/pkg/crypto"
+	"github.com/msojocs/ai-auto-register/server/pkg/openai"
 )
 
 type AccountService struct {

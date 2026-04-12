@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
-	"github.com/msojocs/free2api/server/internal/resource"
-	"github.com/msojocs/free2api/server/pkg/httputil"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/pkg/httputil"
 )
 
 type ProxyService struct {

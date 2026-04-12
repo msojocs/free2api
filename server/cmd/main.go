@@ -3,15 +3,15 @@ package main
 import (
 	"log"
 
-	"github.com/msojocs/free2api/server/config"
-	"github.com/msojocs/free2api/server/internal/api"
-	"github.com/msojocs/free2api/server/internal/api/handler"
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
-	"github.com/msojocs/free2api/server/internal/resource"
-	"github.com/msojocs/free2api/server/internal/scheduler"
-	"github.com/msojocs/free2api/server/internal/service"
+	"github.com/msojocs/ai-auto-register/server/config"
+	"github.com/msojocs/ai-auto-register/server/internal/api"
+	"github.com/msojocs/ai-auto-register/server/internal/api/handler"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/internal/scheduler"
+	"github.com/msojocs/ai-auto-register/server/internal/service"
 )
 
 func main() {

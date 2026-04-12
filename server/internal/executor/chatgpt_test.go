@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/msojocs/free2api/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
 )
 
 func TestChatGPT(t *testing.T) {

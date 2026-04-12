@@ -87,7 +87,7 @@ func (d DatabaseConfig) DSN() string {
 		)
 	default: // sqlite
 		if d.Path == "" {
-			return "data/free2api.db"
+			return "data/ai-auto-register.db"
 		}
 		return d.Path
 	}
@@ -144,7 +144,7 @@ func defaults() *Config {
 		Server: ServerConfig{Port: "8080"},
 		Database: DatabaseConfig{
 			Driver:   "sqlite",
-			Path:     "data/free2api.db",
+			Path:     "data/ai-auto-register.db",
 			DBPort:   "5432",
 			SSLMode:  "disable",
 			TimeZone: "Local",

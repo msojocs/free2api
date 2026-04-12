@@ -3,7 +3,7 @@ package scheduler
 import (
 	"log"
 
-	"github.com/msojocs/free2api/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
 	"github.com/robfig/cron/v3"
 )
 

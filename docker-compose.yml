@@ -3,7 +3,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: free2api-server
+    container_name: ai-auto-register-server
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -14,8 +14,8 @@ services:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=${POSTGRES_DB:-free2api}
-      - DB_USER=${POSTGRES_USER:-free2api}
+      - DB_NAME=${POSTGRES_DB:-ai-auto-register}
+      - DB_USER=${POSTGRES_USER:-ai-auto-register}
       - DB_PASSWORD=${POSTGRES_PASSWORD:-free2api_pass}
     volumes:
       - server-data:/app/data
@@ -32,18 +32,18 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: free2api-postgres
+    container_name: ai-auto-register-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-free2api}
-      - POSTGRES_USER=${POSTGRES_USER:-free2api}
+      - POSTGRES_DB=${POSTGRES_DB:-ai-auto-register}
+      - POSTGRES_USER=${POSTGRES_USER:-ai-auto-register}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-free2api_pass}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-free2api} -d ${POSTGRES_DB:-free2api}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai-auto-register} -d ${POSTGRES_DB:-ai-auto-register}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -52,7 +52,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: free2api-web
+    container_name: ai-auto-register-web
     restart: unless-stopped
     ports:
       - "3000:80"
@@ -63,7 +63,7 @@ services:
     build:
       context: ./third_party/openai
       dockerfile: Dockerfile
-    container_name: free2api-token-server
+    container_name: ai-auto-register-token-server
     restart: unless-stopped
     ports:
       - "3001:3000"

@@ -1,4 +1,4 @@
-# free2api server configuration
+# ai-auto-register server configuration
 # All values can be overridden by the corresponding environment variable.
 # Environment variables always take priority over this file.
 
@@ -15,14 +15,14 @@ database:
   # ── SQLite ──────────────────────────────────────────────────────────────────
   # Path to the SQLite database file (only used when driver = sqlite).
   # Env: DB_PATH
-  path: data/free2api.db
+  path: data/ai-auto-register.db
 
   # ── PostgreSQL ───────────────────────────────────────────────────────────────
   # Uncomment and fill in the fields below to use PostgreSQL (driver = postgres).
   #
   # host: 127.0.0.1      # Env: DB_HOST
   # db_port: "5432"      # Env: DB_PORT
-  # name: free2api       # Env: DB_NAME
+  # name: ai-auto-register       # Env: DB_NAME
   # user: postgres       # Env: DB_USER
   # password: ""         # Env: DB_PASSWORD
   # ssl_mode: disable    # Env: DB_SSL_MODE

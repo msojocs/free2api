@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/pkg/captcha"
-	"github.com/msojocs/free2api/server/pkg/crypto"
-	"github.com/msojocs/free2api/server/pkg/mailprovider"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/pkg/captcha"
+	"github.com/msojocs/ai-auto-register/server/pkg/crypto"
+	"github.com/msojocs/ai-auto-register/server/pkg/mailprovider"
 	"golang.org/x/net/publicsuffix"
 )
 

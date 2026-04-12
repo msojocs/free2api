@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/msojocs/free2api/server/internal/api/handler"
-	"github.com/msojocs/free2api/server/internal/service"
+	"github.com/msojocs/ai-auto-register/server/internal/api/handler"
+	"github.com/msojocs/ai-auto-register/server/internal/service"
 )
 
 func authMiddleware(authSvc *service.AuthService) gin.HandlerFunc {

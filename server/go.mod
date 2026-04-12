@@ -1,4 +1,4 @@
-module github.com/msojocs/free2api/server
+module github.com/msojocs/ai-auto-register/server
 
 go 1.25.0
 

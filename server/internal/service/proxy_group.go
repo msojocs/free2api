@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/internal/repository"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/internal/repository"
 )
 
 type ProxyGroupService struct {

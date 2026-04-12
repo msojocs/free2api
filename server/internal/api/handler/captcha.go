@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/msojocs/free2api/server/internal/resource"
+	"github.com/msojocs/ai-auto-register/server/internal/resource"
 )
 
 type CaptchaHandler struct {

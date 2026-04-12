@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/executor"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/executor"
 )
 
 func main() {

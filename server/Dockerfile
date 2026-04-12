@@ -8,17 +8,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" GOOS=linux go build -o free2api-server ./cmd/
+RUN CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" GOOS=linux go build -o ai-auto-register-server ./cmd/
 
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates sqlite-libs tzdata
 
 WORKDIR /app
-COPY --from=builder /app/free2api-server .
+COPY --from=builder /app/ai-auto-register-server .
 
 RUN mkdir -p /app/data
 
 EXPOSE 8080
 
-CMD ["./free2api-server"]
+CMD ["./ai-auto-register-server"]

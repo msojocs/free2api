@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/msojocs/free2api/server/internal/core"
-	"github.com/msojocs/free2api/server/internal/model"
-	"github.com/msojocs/free2api/server/pkg/mailprovider"
-	"github.com/msojocs/free2api/server/pkg/openai"
+	"github.com/msojocs/ai-auto-register/server/internal/core"
+	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/pkg/mailprovider"
+	"github.com/msojocs/ai-auto-register/server/pkg/openai"
 	"golang.org/x/net/publicsuffix"
 )
 

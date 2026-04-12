@@ -5,7 +5,7 @@ node_modules/
 dist/
 
 # Go build artifacts
-server/free2api-server
+server/ai-auto-register-server
 
 # Database
 server/data/
