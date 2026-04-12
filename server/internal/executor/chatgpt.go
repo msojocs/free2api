@@ -19,6 +19,7 @@ import (
 
 	"github.com/msojocs/ai-auto-register/server/internal/core"
 	"github.com/msojocs/ai-auto-register/server/internal/model"
+	"github.com/msojocs/ai-auto-register/server/pkg/crypto"
 	"github.com/msojocs/ai-auto-register/server/pkg/mailprovider"
 	"github.com/msojocs/ai-auto-register/server/pkg/openai"
 	"golang.org/x/net/publicsuffix"
@@ -790,7 +791,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 		callbackUrl      string
 		tokenInfo        *openAITokenResult
 		resendCount      int
-		maxRetryAttempts int
+		maxRetryAttempts int // resend otp email
 	}
 	stepContext.maxRetryAttempts = 3
 executor_loop:
@@ -888,7 +889,7 @@ executor_loop:
 			e.step = "get_callback_url"
 		case "get_callback_url":
 			// Obtain session/access token
-			sendProgress(publish, taskID, 85, "Obtaining session token…", "running")
+			sendProgress(publish, taskID, 85, "Get callback url…", "running")
 			callbackUrl, tokenErr := sess.getCallbackUrl(ctx)
 			// token errors are non-fatal – the account is still usable with email+password.
 			if tokenErr != nil {
@@ -899,6 +900,7 @@ executor_loop:
 			stepContext.callbackUrl = callbackUrl
 			e.step = "obtain_token"
 		case "obtain_token":
+			sendProgress(publish, taskID, 90, "Obtaining session token…", "running")
 			tokenInfo, err := sess.getTokenInfo(ctx, stepContext.callbackUrl, stepContext.prepareResult)
 			if err != nil {
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to obtain account info: %v", err), "failed")
@@ -919,8 +921,13 @@ executor_loop:
 			return nil, fmt.Errorf("failed to marshal token info: %w", err)
 		}
 	}
+	p, err := crypto.Encrypt(stepContext.password)
+	if err != nil {
+		sendProgress(publish, taskID, 100, fmt.Sprintf("[WARN] Failed to encrypt password: %v", err), "running")
+	}
 	acct := &model.Account{
 		Email:       email,
+		Password:    p,
 		Type:        "chatgpt",
 		Status:      "active",
 		TaskBatchID: taskID,
