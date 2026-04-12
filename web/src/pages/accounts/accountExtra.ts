@@ -1,16 +1,3 @@
-export function parseAccountExtra(extraRaw: string | undefined): Record<string, unknown> {
-  if (!extraRaw) return {}
-  try {
-    const parsed = JSON.parse(extraRaw) as unknown
-    if (parsed && typeof parsed === 'object') {
-      return parsed as Record<string, unknown>
-    }
-    return {}
-  } catch {
-    return {}
-  }
-}
-
 export function extractChatGPTAccountIdFromToken(accessToken: string): string {
   const parts = accessToken.split('.')
   if (parts.length < 2) return ''

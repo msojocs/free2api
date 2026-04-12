@@ -5,7 +5,7 @@ export interface Account {
   email: string
   type: string
   status: string
-  extra?: string
+  extra?: Record<string, unknown>
   usage?: Record<string, unknown>
   task_batch_id: number
   created_at: string

@@ -10,7 +10,7 @@ import {
   type ChatGPTAccountDetailResult,
 } from '../../api/accounts'
 import AccountTableTemplate from './AccountTableTemplate'
-import { parseAccountExtra, extractJwtExp } from './accountExtra'
+import { extractJwtExp } from './accountExtra'
 
 interface UsageInfo {
   used_percent: number
@@ -70,7 +70,7 @@ export default function ChatGPTAccountList() {
       title: t('accounts.accessTokenExpiresAt'),
       key: 'access_token_expires_at',
       render: (_, record) => {
-        const extra = parseAccountExtra(record.extra)
+        const extra = record.extra ?? {}
         const accessToken = extra.access_token
         if (typeof accessToken !== 'string') return '-'
         const exp = extractJwtExp(accessToken)
