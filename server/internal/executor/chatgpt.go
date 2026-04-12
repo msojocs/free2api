@@ -787,7 +787,6 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	var stepContext struct {
 		prepareResult    *openAIPrepareResult
 		password         string
-		passResult       string
 		callbackUrl      string
 		tokenInfo        *openAITokenResult
 		resendCount      int
@@ -829,12 +828,11 @@ executor_loop:
 			// Set password
 			password := randPassword()
 			sendProgress(publish, taskID, 50, fmt.Sprintf("Setting password: %s …", password), "running")
-			passResult, err := sess.setPassword(ctx, email, password, stepContext.prepareResult)
+			_, err := sess.setPassword(ctx, email, password, stepContext.prepareResult)
 			if err != nil {
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to set password: %v", err), "failed")
 				return nil, err
 			}
-			stepContext.passResult = passResult
 			e.step = "send_otp"
 		case "send_otp":
 			// Trigger OTP email
@@ -924,6 +922,9 @@ executor_loop:
 			"id_token":      stepContext.tokenInfo.IdToken,
 		}
 	}
+	mailAccount.Extra["type"] = mailProviderType
+	extra["email_provider_data"] = mailAccount
+
 	p, err := crypto.Encrypt(stepContext.password)
 	if err != nil {
 		sendProgress(publish, taskID, 100, fmt.Sprintf("[WARN] Failed to encrypt password: %v", err), "running")
