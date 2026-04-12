@@ -351,6 +351,7 @@ const zh = {
       linshiyouxiang: '临时邮箱',
       tempmailorg: 'TempMail.org',
       secemail: 'SecEmail',
+      tmailor: 'TMailor',
     },
   },
 } as const

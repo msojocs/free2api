@@ -351,6 +351,7 @@ const en = {
       linshiyouxiang: 'Linshiyouxiang',
       tempmailorg: 'TempMail.org',
       secemail: 'SeceEmail',
+      tmailor: 'TMailor',
     },
   },
 } as const

@@ -54,6 +54,9 @@ const PROVIDER_CONFIG_FIELDS: Record<
   secemail: [
     { key: 'api_url', labelKey: 'tempMail.apiUrl', placeholderKey: 'tempMail.apiUrlPlaceholder' },
   ],
+  tmailor: [
+    { key: 'api_url', labelKey: 'tempMail.apiUrl', placeholderKey: 'tempMail.apiUrlPlaceholder' },
+  ],
 }
 
 const PROVIDER_TYPE_KEYS = Object.keys(PROVIDER_CONFIG_FIELDS)
