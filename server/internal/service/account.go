@@ -428,6 +428,11 @@ func (s *AccountService) CheckAndRefreshAll(ctx context.Context) {
 			continue
 		}
 
+		if isUsageSaturatedBeforeReset(a.Usage) {
+			log.Printf("[account-check] skipping account %d (%s): usage 100%% and reset not reached", a.ID, a.Email)
+			continue
+		}
+
 		if a.Type == "chatgpt" {
 			if shouldRefreshToken(a.Extra) {
 				log.Printf("[account-check] refreshing near-expiry token for account %d (%s)", a.ID, a.Email)
@@ -464,6 +469,48 @@ func shouldRefreshToken(extraRaw string) bool {
 		return false
 	}
 	return time.Until(expiresAt) <= 24*time.Hour
+}
+
+// isUsageSaturatedBeforeReset returns true when the stored usage data shows
+// 100% utilisation (used_percent == 100 or limit_reached == true) AND the
+// reset_at timestamp is still in the future, meaning there is no point
+// running a check until the window resets.
+func isUsageSaturatedBeforeReset(usage model.JSONMap) bool {
+	if len(usage) == 0 {
+		return false
+	}
+
+	// limit_reached flag takes priority when present.
+	limitReached, _ := usage["limit_reached"].(bool)
+
+	usedPercent, _ := usage["used_percent"].(float64)
+
+	if !limitReached && usedPercent < 100 {
+		return false
+	}
+
+	// Check whether reset_at (Unix seconds) is still in the future.
+	resetAtVal, ok := usage["reset_at"]
+	if !ok {
+		return false
+	}
+	var resetAtUnix int64
+	switch v := resetAtVal.(type) {
+	case float64:
+		resetAtUnix = int64(v)
+	case int64:
+		resetAtUnix = v
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			resetAtUnix = n
+		}
+	default:
+		return false
+	}
+	if resetAtUnix <= 0 {
+		return false
+	}
+	return time.Now().Before(time.Unix(resetAtUnix, 0))
 }
 
 func parseAccountExtra(raw string) (map[string]interface{}, error) {
