@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Tabs, Form, Input, Button, Card, Space, Typography, message, Select } from 'antd'
+import { Tabs, Form, Input, Button, Card, Space, Typography, message, Select, Switch, InputNumber } from 'antd'
 import { useTranslation } from 'react-i18next'
 import ProxyGroupManager from '../components/ProxyGroupManager'
 import { getSystemSettings, updateSystemSettings } from '../api/settings'
@@ -12,6 +12,8 @@ export default function SystemSettings() {
   const [form] = Form.useForm<{
     sentinel_base_url: string
     account_action_proxy_group_id?: number
+    account_check_enabled: boolean
+    account_check_interval_minutes: number
   }>()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -24,6 +26,8 @@ export default function SystemSettings() {
       form.setFieldsValue({
         sentinel_base_url: data.sentinel_base_url,
         account_action_proxy_group_id: data.account_action_proxy_group_id,
+        account_check_enabled: data.account_check_enabled ?? false,
+        account_check_interval_minutes: data.account_check_interval_minutes ?? 60,
       })
     } catch {
       message.error(t('settings.failedToLoad'))
@@ -49,6 +53,8 @@ export default function SystemSettings() {
   async function handleSave(values: {
     sentinel_base_url: string
     account_action_proxy_group_id?: number
+    account_check_enabled: boolean
+    account_check_interval_minutes: number
   }) {
     setSaving(true)
     try {
@@ -56,6 +62,8 @@ export default function SystemSettings() {
       form.setFieldsValue({
         sentinel_base_url: data.sentinel_base_url,
         account_action_proxy_group_id: data.account_action_proxy_group_id,
+        account_check_enabled: data.account_check_enabled ?? false,
+        account_check_interval_minutes: data.account_check_interval_minutes ?? 60,
       })
       message.success(t('settings.saved'))
     } catch {
@@ -88,9 +96,24 @@ export default function SystemSettings() {
                     placeholder={t('settings.proxyGroupPlaceholder')}
                   />
                 </Form.Item>
+                <Form.Item
+                  label={t('settings.accountCheckEnabled')}
+                  name="account_check_enabled"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+                <Form.Item
+                  label={t('settings.accountCheckIntervalMinutes')}
+                  name="account_check_interval_minutes"
+                  rules={[{ required: true, type: 'number', min: 1 }]}
+                >
+                  <InputNumber min={1} style={{ width: '100%' }} />
+                </Form.Item>
                 <Space direction="vertical" size={12} style={{ width: '100%' }}>
                   <Text type="secondary">{t('settings.sentinelBaseUrlHelp')}</Text>
                   <Text type="secondary">{t('settings.proxyGroupHelp')}</Text>
+                  <Text type="secondary">{t('settings.accountCheckIntervalMinutesHelp')}</Text>
                   <Button type="primary" htmlType="submit" loading={saving}>
                     {t('common.save')}
                   </Button>

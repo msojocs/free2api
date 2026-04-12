@@ -16,7 +16,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=${POSTGRES_DB:-ai-auto-register}
       - DB_USER=${POSTGRES_USER:-ai-auto-register}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-free2api_pass}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-aar_pass}
     volumes:
       - server-data:/app/data
       # Mount config directory so config.yaml is available inside the container.

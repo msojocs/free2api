@@ -40,7 +40,7 @@ export default function Login() {
       <Card style={{ width: 360 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <Title level={3} style={{ margin: 0 }}>
-            Free2API
+            AI Auto Register
           </Title>
           <Typography.Text type="secondary">{t('login.subtitle')}</Typography.Text>
         </div>

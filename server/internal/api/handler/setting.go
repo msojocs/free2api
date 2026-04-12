@@ -28,8 +28,10 @@ func (h *SettingHandler) Get(c *gin.Context) {
 // Update saves new system settings.
 func (h *SettingHandler) Update(c *gin.Context) {
 	var req struct {
-		SentinelBaseURL           string `json:"sentinel_base_url"`
-		AccountActionProxyGroupID *uint  `json:"account_action_proxy_group_id"`
+		SentinelBaseURL             string `json:"sentinel_base_url"`
+		AccountActionProxyGroupID   *uint  `json:"account_action_proxy_group_id"`
+		AccountCheckEnabled         bool   `json:"account_check_enabled"`
+		AccountCheckIntervalMinutes int    `json:"account_check_interval_minutes"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Fail(400, err.Error()))
@@ -38,6 +40,8 @@ func (h *SettingHandler) Update(c *gin.Context) {
 	setting, err := h.svc.Save(
 		req.SentinelBaseURL,
 		req.AccountActionProxyGroupID,
+		req.AccountCheckEnabled,
+		req.AccountCheckIntervalMinutes,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Fail(500, err.Error()))

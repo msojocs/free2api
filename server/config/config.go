@@ -150,7 +150,7 @@ func defaults() *Config {
 			TimeZone: "Local",
 		},
 		Auth: AuthConfig{
-			JWTSecret:            "free2api_jwt_secret_change_in_production",
+			JWTSecret:            "aar_jwt_secret_change_in_production",
 			DefaultAdminUsername: "admin",
 			DefaultAdminPassword: "admin123456",
 		},

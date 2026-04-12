@@ -14,7 +14,7 @@ func getKey() []byte {
 	if k := os.Getenv("ENCRYPTION_KEY"); len(k) >= 32 {
 		return []byte(k[:32])
 	}
-	return []byte("free2api_secure_key_2024_padding!")[:32]
+	return []byte("ai_auto_register_secure_key_2024_padding!")[:32]
 }
 
 func Encrypt(plaintext string) (string, error) {

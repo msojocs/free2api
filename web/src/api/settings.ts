@@ -4,11 +4,15 @@ export interface SystemSettings {
   id: number
   sentinel_base_url: string
   account_action_proxy_group_id?: number
+  account_check_enabled: boolean
+  account_check_interval_minutes: number
 }
 
 export interface UpdateSystemSettingsPayload {
   sentinel_base_url: string
   account_action_proxy_group_id?: number
+  account_check_enabled: boolean
+  account_check_interval_minutes: number
 }
 
 export function getSystemSettings() {

@@ -170,7 +170,7 @@ export default function AppLayout() {
           }}
         >
           <Text strong style={{ color: '#fff', fontSize: 18 }}>
-            {collapsed && !broken ? 'F2A' : 'Free2API'}
+            {collapsed && !broken ? 'AAR' : 'AI Auto Register'}
           </Text>
         </div>
         <Menu

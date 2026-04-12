@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"strings"
@@ -413,6 +414,58 @@ func (s *AccountService) GetChatGPTDetail(_ context.Context, id uint) (*ChatGPTA
 	}, nil
 }
 
+// CheckAndRefreshAll iterates all accounts, skips banned ones, refreshes
+// near-expiry ChatGPT tokens, then checks availability and updates usage.
+func (s *AccountService) CheckAndRefreshAll(ctx context.Context) {
+	accounts, err := s.repo.ListAll("")
+	if err != nil {
+		log.Printf("[account-check] failed to list accounts: %v", err)
+		return
+	}
+
+	for _, a := range accounts {
+		if a.Status == "banned" {
+			continue
+		}
+
+		if a.Type == "chatgpt" {
+			if shouldRefreshToken(a.Extra) {
+				log.Printf("[account-check] refreshing near-expiry token for account %d (%s)", a.ID, a.Email)
+				if _, err := s.RefreshChatGPTToken(ctx, a.ID); err != nil {
+					log.Printf("[account-check] token refresh failed for account %d: %v", a.ID, err)
+				}
+			}
+		}
+
+		log.Printf("[account-check] checking account %d (%s)", a.ID, a.Email)
+		if _, err := s.Check(ctx, a.ID); err != nil {
+			log.Printf("[account-check] check failed for account %d: %v", a.ID, err)
+		}
+	}
+	log.Printf("[account-check] done, processed %d accounts", len(accounts))
+}
+
+// shouldRefreshToken returns true when the access_token_expires_at field is
+// within 24 hours of now (i.e. it is about to expire).
+func shouldRefreshToken(extraRaw string) bool {
+	if strings.TrimSpace(extraRaw) == "" {
+		return false
+	}
+	var extra map[string]interface{}
+	if err := json.Unmarshal([]byte(extraRaw), &extra); err != nil {
+		return false
+	}
+	expiresAtStr, _ := extra["access_token_expires_at"].(string)
+	if strings.TrimSpace(expiresAtStr) == "" {
+		return false
+	}
+	expiresAt, err := time.Parse(time.RFC3339, expiresAtStr)
+	if err != nil {
+		return false
+	}
+	return time.Until(expiresAt) <= 24*time.Hour
+}
+
 func parseAccountExtra(raw string) (map[string]interface{}, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, errors.New("account extra field is empty")
@@ -479,8 +532,10 @@ func deriveFailedStatus(err error) string {
 		strings.Contains(msg, "suspended") ||
 		strings.Contains(msg, "deactivated") {
 		return "banned"
+	} else if strings.Contains(msg, "invalidated") {
+		return "expired"
 	}
-	return "expired"
+	return "pending"
 }
 
 func (s *AccountService) resolveAccountActionProxy() (string, error) {

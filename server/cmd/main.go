@@ -21,7 +21,7 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	if cfg.Auth.JWTSecret == "free2api_jwt_secret_change_in_production" {
+	if cfg.Auth.JWTSecret == "aar_jwt_secret_change_in_production" {
 		log.Println("WARNING: using default JWT_SECRET; set jwt_secret in config.yaml or JWT_SECRET env var in production.")
 	}
 
@@ -37,10 +37,6 @@ func main() {
 
 	proxyRes := resource.NewProxyResource(model.DB)
 	captchaRes := resource.NewCaptchaResource(model.DB, cfg.Captcha.Provider, cfg.Captcha.APIKey)
-
-	sched := scheduler.NewScheduler(proxyRes)
-	sched.Start()
-	defer sched.Stop()
 
 	// Repository layer
 	userRepo := repository.NewUserRepository(model.DB)
@@ -61,6 +57,7 @@ func main() {
 		log.Printf("Created default admin account: %s", defaultAdmin.Username)
 		log.Println("WARNING: change the default admin password immediately after first login.")
 	}
+
 	settingSvc := service.NewSettingService(settingRepo, proxyGroupRepo, cfg.Executor.SentinelBaseURL)
 	taskSvc := service.NewTaskService(taskRepo, pool, model.DB, proxyRes, settingSvc)
 	accountSvc := service.NewAccountService(accountRepo, settingRepo, proxyRes)
@@ -72,6 +69,10 @@ func main() {
 	model.SeedPushTemplate(model.DB)
 	model.SeedTempMailProviders(model.DB)
 	pushTemplateSvc.RegisterDBHook(model.DB)
+
+	sched := scheduler.NewScheduler(proxyRes, accountSvc, settingRepo)
+	sched.Start()
+	defer sched.Stop()
 
 	authH := handler.NewAuthHandler(authSvc)
 	taskH := handler.NewTaskHandler(taskSvc)

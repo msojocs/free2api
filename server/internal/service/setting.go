@@ -51,6 +51,8 @@ func (s *SettingService) GetSentinelBaseURL() string {
 func (s *SettingService) Save(
 	sentinelBaseURL string,
 	accountActionProxyGroupID *uint,
+	accountCheckEnabled bool,
+	accountCheckIntervalMinutes int,
 ) (*model.SystemSetting, error) {
 	sentinelBaseURL = strings.TrimSpace(sentinelBaseURL)
 	if sentinelBaseURL == "" {
@@ -67,10 +69,16 @@ func (s *SettingService) Save(
 		}
 	}
 
+	if accountCheckIntervalMinutes <= 0 {
+		accountCheckIntervalMinutes = 60
+	}
+
 	setting := &model.SystemSetting{
-		ID:                        1,
-		SentinelBaseURL:           sentinelBaseURL,
-		AccountActionProxyGroupID: accountActionProxyGroupID,
+		ID:                          1,
+		SentinelBaseURL:             sentinelBaseURL,
+		AccountActionProxyGroupID:   accountActionProxyGroupID,
+		AccountCheckEnabled:         accountCheckEnabled,
+		AccountCheckIntervalMinutes: accountCheckIntervalMinutes,
 	}
 	if err := s.repo.Save(setting); err != nil {
 		return nil, err

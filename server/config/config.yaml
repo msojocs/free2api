@@ -31,7 +31,7 @@ database:
 auth:
   # JWT signing secret. Change this in production!
   # Env: JWT_SECRET
-  jwt_secret: "free2api_jwt_secret_change_in_production"
+  jwt_secret: "aar_jwt_secret_change_in_production"
 
   # Default admin account created automatically on first startup when the user table is empty.
   # Change these in production.
