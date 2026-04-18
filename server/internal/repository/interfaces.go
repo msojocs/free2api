@@ -31,7 +31,7 @@ type AccountRepository interface {
 	FindByID(id uint) (*model.Account, error)
 	FindByEmail(email string) (*model.Account, error)
 	List(offset, limit int, accountType string) ([]model.Account, int64, error)
-	ListAll(accountType string) ([]model.Account, error)
+	ListAll(accountType string, ids []uint) ([]model.Account, error)
 	Delete(id uint) error
 	CountByStatus(status string) (int64, error)
 	Count() (int64, error)

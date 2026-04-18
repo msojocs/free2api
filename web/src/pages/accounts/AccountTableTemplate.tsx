@@ -85,27 +85,37 @@ export default function AccountTableTemplate({
 
   useEffect(() => {
     setPage(1)
+    setSelectedRowKeys([])
   }, [accountType, status])
 
   useEffect(() => {
     void fetchAccounts(page)
-  }, [page])
+  }, [fetchAccounts, page])
 
   const importFileRef = useRef<HTMLInputElement>(null)
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(async (selectedOnly: boolean) => {
+    const selectedIds = selectedRowKeys
+      .map((key) => Number(key))
+      .filter((id) => Number.isInteger(id) && id > 0)
+
+    if (selectedOnly && selectedIds.length === 0) {
+      message.warning(t('accounts.exportSelectFirst'))
+      return
+    }
+
     try {
-      const { data } = await exportAccounts(accountType)
+      const { data } = await exportAccounts(accountType, selectedOnly ? selectedIds : undefined)
       const url = URL.createObjectURL(data as Blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'accounts.json'
+      a.download = selectedOnly ? 'accounts-selected.json' : 'accounts.json'
       a.click()
       URL.revokeObjectURL(url)
     } catch {
       message.error(t('accounts.exportFailed'))
     }
-  }, [accountType, t])
+  }, [accountType, selectedRowKeys, t])
 
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -397,9 +407,28 @@ export default function AccountTableTemplate({
           <Button icon={<ReloadOutlined />} onClick={() => void fetchAccounts()} loading={loading}>
             {t('accounts.refresh')}
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={() => void handleExport()}>
-            {t('accounts.exportJson')}
-          </Button>
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                {
+                  key: 'selected',
+                  label: t('accounts.exportSelectedJson'),
+                  disabled: selectedRowKeys.length === 0,
+                  onClick: () => void handleExport(true),
+                },
+                {
+                  key: 'all',
+                  label: t('accounts.exportAllJson'),
+                  onClick: () => void handleExport(false),
+                },
+              ],
+            }}
+          >
+            <Button icon={<DownloadOutlined />}>
+              {t('accounts.exportJson')}
+            </Button>
+          </Dropdown>
           <input
             ref={importFileRef}
             type="file"
@@ -427,6 +456,7 @@ export default function AccountTableTemplate({
         dataSource={accounts}
         rowKey="id"
         rowSelection={{
+          preserveSelectedRowKeys: true,
           selectedRowKeys,
           onChange: (keys) => setSelectedRowKeys(keys),
         }}

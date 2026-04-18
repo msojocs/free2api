@@ -15,9 +15,17 @@ export function getAccounts(params?: { type?: string; status?: string; page?: nu
   return api.get<{ accounts: Account[]; total: number }>('/accounts', { params })
 }
 
-export function exportAccounts(type?: string) {
+export function exportAccounts(type?: string, ids?: number[]) {
+  const params: { type?: string; ids?: string } = {}
+  if (type) {
+    params.type = type
+  }
+  if (ids && ids.length > 0) {
+    params.ids = ids.join(',')
+  }
+
   return api.get('/accounts/export', {
-    params: { type },
+    params,
     responseType: 'blob',
   })
 }

@@ -45,11 +45,14 @@ func (r *accountRepository) List(offset, limit int, accountType string) ([]model
 	return accounts, total, err
 }
 
-func (r *accountRepository) ListAll(accountType string) ([]model.Account, error) {
+func (r *accountRepository) ListAll(accountType string, ids []uint) ([]model.Account, error) {
 	var accounts []model.Account
 	query := r.db.Model(&model.Account{})
 	if accountType != "" {
 		query = query.Where("type = ?", accountType)
+	}
+	if len(ids) > 0 {
+		query = query.Where("id IN ?", ids)
 	}
 	err := query.Find(&accounts).Error
 	return accounts, err

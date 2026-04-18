@@ -54,27 +54,37 @@ type exportRecord struct {
 	Extra    model.JSONMap `json:"extra,omitempty"`
 }
 
-func (s *AccountService) Export(accountType string) ([]byte, error) {
-	accounts, err := s.repo.ListAll(accountType)
+func (s *AccountService) Export(accountType string, ids []uint) ([]byte, error) {
+	accounts, err := s.repo.ListAll(accountType, ids)
 	if err != nil {
 		return nil, err
 	}
 
 	records := make([]exportRecord, 0, len(accounts))
 	for _, a := range accounts {
-		password, decErr := crypto.Decrypt(a.Password)
-		if decErr != nil {
-			password = ""
-		}
 		records = append(records, exportRecord{
 			Email:    a.Email,
-			Password: password,
+			Password: exportPassword(a.Password),
 			Type:     a.Type,
 			Status:   a.Status,
 			Extra:    a.Extra,
 		})
 	}
 	return json.Marshal(records)
+}
+
+func exportPassword(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+
+	password, err := crypto.Decrypt(raw)
+	if err == nil {
+		return password
+	}
+
+	// Keep legacy/plaintext values instead of silently exporting an empty password.
+	return raw
 }
 
 // ImportAccountRecord is the shape of each item in an import JSON file.
@@ -405,7 +415,7 @@ func (s *AccountService) GetChatGPTDetail(_ context.Context, id uint) (*ChatGPTA
 // CheckAndRefreshAll iterates all accounts, skips banned ones, refreshes
 // near-expiry ChatGPT tokens, then checks availability and updates usage.
 func (s *AccountService) CheckAndRefreshAll(ctx context.Context) {
-	accounts, err := s.repo.ListAll("")
+	accounts, err := s.repo.ListAll("", nil)
 	if err != nil {
 		log.Printf("[account-check] failed to list accounts: %v", err)
 		return
