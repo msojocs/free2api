@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Tabs, Form, Input, Button, Card, Space, Typography, message, Select, Switch, InputNumber } from 'antd'
+import { Tabs, Form, Input, Button, Card, Space, message, Select, Switch, InputNumber } from 'antd'
 import { useTranslation } from 'react-i18next'
 import ProxyGroupManager from '../components/ProxyGroupManager'
 import { getSystemSettings, updateSystemSettings } from '../api/settings'
 import { getProxyGroups, type ProxyGroup } from '../api/proxyGroups'
-
-const { Text } = Typography
 
 export default function SystemSettings() {
   const { t } = useTranslation()
@@ -85,11 +83,16 @@ export default function SystemSettings() {
                 <Form.Item
                   label={t('settings.sentinelBaseUrl')}
                   name="sentinel_base_url"
+                  extra={t('settings.sentinelBaseUrlHelp')}
                   rules={[{ required: true, message: t('settings.sentinelBaseUrlRequired') }]}
                 >
                   <Input placeholder={t('settings.sentinelBaseUrlPlaceholder')} />
                 </Form.Item>
-                <Form.Item label={t('settings.accountActionProxyGroup')} name="account_action_proxy_group_id">
+                <Form.Item
+                  label={t('settings.accountActionProxyGroup')}
+                  name="account_action_proxy_group_id"
+                  extra={t('settings.proxyGroupHelp')}
+                >
                   <Select
                     allowClear
                     options={proxyGroups.map((group) => ({ label: group.name, value: group.id }))}
@@ -106,14 +109,12 @@ export default function SystemSettings() {
                 <Form.Item
                   label={t('settings.accountCheckIntervalMinutes')}
                   name="account_check_interval_minutes"
+                  extra={t('settings.accountCheckIntervalMinutesHelp')}
                   rules={[{ required: true, type: 'number', min: 1 }]}
                 >
                   <InputNumber min={1} style={{ width: '100%' }} />
                 </Form.Item>
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  <Text type="secondary">{t('settings.sentinelBaseUrlHelp')}</Text>
-                  <Text type="secondary">{t('settings.proxyGroupHelp')}</Text>
-                  <Text type="secondary">{t('settings.accountCheckIntervalMinutesHelp')}</Text>
+                <Space style={{ width: '100%' }}>
                   <Button type="primary" htmlType="submit" loading={saving}>
                     {t('common.save')}
                   </Button>
