@@ -228,6 +228,7 @@ func (s *AccountService) checkChatGPTAccount(_ context.Context, account *model.A
 
 	if _, err := client.CheckAccount(); err != nil {
 		account.Status = deriveFailedStatus(err)
+		log.Printf("Update status to %s", account.Status)
 		if updateErr := s.repo.Update(account); updateErr != nil {
 			return nil, updateErr
 		}
@@ -430,6 +431,12 @@ func (s *AccountService) CheckAndRefreshAll(ctx context.Context) {
 				log.Printf("[account-check] refreshing near-expiry token for account %d (%s)", a.ID, a.Email)
 				if _, err := s.RefreshChatGPTToken(ctx, a.ID); err != nil {
 					log.Printf("[account-check] token refresh failed for account %d: %v", a.ID, err)
+					status := deriveFailedStatus(err)
+					a.Status = status
+					if updateErr := s.repo.Update(&a); updateErr != nil {
+						log.Printf("[account-check] failed to update account status for account %d: %v", a.ID, updateErr)
+					}
+					continue
 				}
 			}
 		}
@@ -607,7 +614,8 @@ func deriveFailedStatus(err error) string {
 	if strings.Contains(msg, "forbidden") ||
 		strings.Contains(msg, "banned") ||
 		strings.Contains(msg, "suspended") ||
-		strings.Contains(msg, "deactivated") {
+		strings.Contains(msg, "deactivated") ||
+		strings.Contains(msg, "already been used") {
 		return "banned"
 	} else if strings.Contains(msg, "invalidated") {
 		return "expired"
