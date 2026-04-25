@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -175,6 +176,7 @@ func (p *LinshiyouxiangProvider) getMessageDetail(ctx context.Context, code stri
 	if err != nil {
 		return "", err
 	}
+	// fmt.Println(string(data))
 	// <div class="table-responsive msglist  pb-4">(xxx)"site-description"
 	detailReg := regexp.MustCompile(`emailContent = ([\s\S]+?)iframe.srcdoc = emailContent`)
 	detailMatch := detailReg.FindSubmatch(data)
@@ -188,6 +190,16 @@ func (p *LinshiyouxiangProvider) getMessageDetail(ctx context.Context, code stri
 func (p *LinshiyouxiangProvider) WaitForCode(ctx context.Context, account *MailAccount, keyword string, timeoutSec int) (string, error) {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 	seen := map[string]bool{}
+	uri, _ := url.Parse(defaultLinshiyouxiangURL)
+	p.client.Jar.SetCookies(uri, []*http.Cookie{
+		{
+			Name:     "temp_mail",
+			Value:    url.QueryEscape(account.AccountID),
+			Path:     "/",
+			HttpOnly: false,
+			Secure:   false,
+		},
+	})
 
 	for time.Now().Before(deadline) {
 		select {

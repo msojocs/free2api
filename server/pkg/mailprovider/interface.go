@@ -125,7 +125,7 @@ func buildTransport(proxyURL string) *http.Transport {
 }
 
 var (
-	codeRe = regexp.MustCompile(`\b(\d{6,8})\b`)
+	codeRe = regexp.MustCompile(`[^#]\b(\d{6})\b`)
 	linkRe = regexp.MustCompile(`https?://[^\s<>"'\]]+`)
 )
 
