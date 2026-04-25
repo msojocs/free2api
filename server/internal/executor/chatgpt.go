@@ -41,7 +41,6 @@ const (
 // ChatGPTExecutor registers new OpenAI / ChatGPT accounts using the HTTP protocol flow.
 type ChatGPTExecutor struct {
 	sentinelBaseURL string
-	step            string
 	authBaseURL     string
 	cloudflareURL   string
 	sentinelReqURL  string
@@ -219,7 +218,6 @@ func (s *openAISession) fillJsonHeaders(req *http.Request) {
 
 func (s *openAISession) fillHtmlHeaders(req *http.Request) {
 	s.fillBaseHeaders(req)
-	req.Header.Set("accept-encoding", "gzip, deflate, br, zstd")
 	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 }
 
@@ -328,14 +326,60 @@ func (s *openAISession) isEmailNeedSignUp(ctx context.Context, email string, pre
 	}
 	var continueResult struct {
 		Page struct {
-			Type string `json:"type"`
+			Type    string `json:"type"`
+			Payload struct {
+				PasswordlessDisabled bool `json:"passwordless_disabled"`
+			} `json:"payload"`
 		} `json:"page"`
 	}
 	if err := json.Unmarshal(body, &continueResult); err != nil {
 		return "", fmt.Errorf("Failed to parse response: %w", err)
 	}
 
+	if continueResult.Page.Type == "login_password" && continueResult.Page.Payload.PasswordlessDisabled {
+		return continueResult.Page.Type, fmt.Errorf("Passwordless login is disabled for this email; password verification may be required")
+	}
+
 	return continueResult.Page.Type, nil
+
+}
+
+func (s *openAISession) passwordlessLogin(ctx context.Context) error {
+	reqUrl := fmt.Sprintf("%s/api/accounts/passwordless/send-otp", s.authBaseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqUrl, nil)
+	if err != nil {
+		return err
+	}
+	s.fillJsonHeaders(req)
+	resp, err := s.noRedirect.Do(req)
+	if err != nil {
+		return fmt.Errorf("Failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Failed to execute request: unexpected status code: %d", resp.StatusCode)
+	}
+	return nil
+
+}
+
+func (s *openAISession) authSessionDump() (string, error) {
+	reqUrl := fmt.Sprintf("%s/api/accounts/client_auth_session_dump", s.authBaseURL)
+	req, err := http.NewRequest(http.MethodGet, reqUrl, nil)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create request: %v", err)
+	}
+	s.fillHtmlHeaders(req)
+	resp, err := s.noRedirect.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("Failed to read response body: %v", err)
+	}
+	return string(body), nil
 
 }
 
@@ -346,8 +390,8 @@ func (s *openAISession) setPassword(ctx context.Context, email, password string,
 	s.sentinelToken = s.newSentinelToken("username_password_create", prepareResult.OaiDid)
 	s.sentinelToken.Req(s.noRedirect)
 	jsonData := map[string]string{
-		"username": email,
 		"password": password,
+		"username": email,
 	}
 	str, err := json.Marshal(jsonData)
 	if err != nil {
@@ -785,7 +829,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	email := mailAccount.Email
 	sendProgress(publish, taskID, 24, fmt.Sprintf("Got email: %s", email), "running")
 
-	e.step = "prepare_session"
+	step := "prepare_session"
 	var stepContext struct {
 		prepareResult    *openAIPrepareResult
 		password         string
@@ -797,7 +841,7 @@ func (e *ChatGPTExecutor) Execute(ctx context.Context, taskID uint, config map[s
 	stepContext.maxRetryAttempts = 3
 executor_loop:
 	for {
-		switch e.step {
+		switch step {
 		case "prepare_session":
 			// Seed session / get state
 			sendProgress(publish, taskID, 30, "Seeding registration session…", "running")
@@ -813,7 +857,7 @@ executor_loop:
 				return nil, err
 			}
 			stepContext.prepareResult = prepareResult
-			e.step = "check_email"
+			step = "check_email"
 		case "check_email":
 			sendProgress(publish, taskID, 40, "Checking if email needs sign-up…", "running")
 			nextPage, err := sess.isEmailNeedSignUp(ctx, email, stepContext.prepareResult)
@@ -822,17 +866,34 @@ executor_loop:
 			}
 
 			switch nextPage {
-			case "email_otp_verification":
+			case "login_password":
 				// otp验证，邮箱已经被使用了，不需要注册
-				e.step = "wait_for_otp"
+				step = "wait_for_otp"
 			case "create_account_password":
 				// 填写密码，邮箱没被使用了，需要注册
-				e.step = "set_password"
+				step = "dump_session"
 			default:
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Check email failed: %v", err), "failed")
 				// 非预期的响应类型
 				return nil, fmt.Errorf("Unexpected page type: %s", nextPage)
 			}
+		case "dump_session":
+			// Dump session for debugging
+			dump, err := sess.authSessionDump()
+			if err != nil {
+				sendProgress(publish, taskID, 100, fmt.Sprintf("Session dump failed: %v", err), "failed")
+				return nil, err
+			}
+			sendProgress(publish, taskID, 45, fmt.Sprintf("Session dump: %s", dump), "running")
+			step = "set_password"
+		case "passwordless_otp":
+			sendProgress(publish, taskID, 50, "Passwordless login…", "running")
+			err := sess.passwordlessLogin(ctx)
+			if err != nil {
+				sendProgress(publish, taskID, 100, fmt.Sprintf("Passwordless login failed: %v", err), "failed")
+				return nil, err
+			}
+			step = "wait_for_otp"
 		case "set_password":
 			// Set password
 			password := randPassword()
@@ -842,7 +903,7 @@ executor_loop:
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to set password: %v", err), "failed")
 				return nil, err
 			}
-			e.step = "send_otp"
+			step = "send_otp"
 		case "send_otp":
 			// Trigger OTP email
 			sendProgress(publish, taskID, 55, "Triggering OTP email…", "running")
@@ -853,35 +914,41 @@ executor_loop:
 				return nil, err
 			}
 			// For simplicity, we proceed to wait for the OTP.
-			e.step = "wait_for_otp"
+			step = "wait_for_otp"
 		case "resend_otp":
 			err := sess.resendOtp(ctx)
 			if err != nil {
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to resend OTP email: %v", err), "running")
 				return nil, err
 			}
-			stepContext.resendCount++
 			sendProgress(publish, taskID, 55+stepContext.resendCount*5, fmt.Sprintf("Resent OTP email (%d/%d)…", stepContext.resendCount, stepContext.maxRetryAttempts), "running")
-			e.step = "wait_for_otp"
+			step = "wait_for_otp"
 		case "wait_for_otp":
 			// Wait for OTP and verify
 			sendProgress(publish, taskID, 58, "Waiting for email verification code…", "running")
 			otp, err := mp.WaitForCode(ctx, mailAccount, "openai", 30)
 			if err != nil {
-				if stepContext.resendCount >= stepContext.maxRetryAttempts {
-					sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to get OTP after %d attempts: %v", stepContext.resendCount, err), "running")
-					return nil, fmt.Errorf("failed to get OTP after %d attempts: %w", stepContext.resendCount, err)
+				if stepContext.resendCount < stepContext.maxRetryAttempts {
+					sendProgress(publish, taskID, 55+stepContext.resendCount*5, fmt.Sprintf("Failed to get OTP, resend. reason: %v", err), "failed")
+					stepContext.resendCount++
+					step = "resend_otp"
+					continue
 				}
-				sendProgress(publish, taskID, 55+stepContext.resendCount*5, fmt.Sprintf("Failed to get OTP, resend. reason: %v", err), "failed")
-				e.step = "resend_otp"
-				continue
+				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to get OTP after %d attempts: %v", stepContext.resendCount, err), "running")
+				return nil, fmt.Errorf("failed to get OTP after %d attempts: %w", stepContext.resendCount, err)
+
 			}
 			sendProgress(publish, taskID, 70, fmt.Sprintf("Got OTP: %s – verifying…", otp), "running")
 			if err := sess.verifyEmailOTP(ctx, email, otp, stepContext.prepareResult); err != nil {
+				if strings.Contains(err.Error(), "wrong_email_otp_code") && stepContext.resendCount < stepContext.maxRetryAttempts {
+					step = "resend_otp"
+					stepContext.resendCount++
+					continue
+				}
 				sendProgress(publish, taskID, 100, fmt.Sprintf("Failed to verify OTP: %v", err), "failed")
 				return nil, err
 			}
-			e.step = "create_account"
+			step = "create_account"
 		case "create_account":
 			continueType, err := sess.createAccount(ctx, stepContext.prepareResult)
 			if err != nil {
@@ -893,7 +960,7 @@ executor_loop:
 				sendProgress(publish, taskID, 80, "[WARN] chatgpt createAccount: phone verification required; account may be limited or blocked", "running")
 			}
 			sendProgress(publish, taskID, 80, "Account created successfully!", "running")
-			e.step = "get_callback_url"
+			step = "get_callback_url"
 		case "get_callback_url":
 			// Obtain session/access token
 			sendProgress(publish, taskID, 85, "Get callback url…", "running")
@@ -905,7 +972,7 @@ executor_loop:
 			}
 
 			stepContext.callbackUrl = callbackUrl
-			e.step = "obtain_token"
+			step = "obtain_token"
 		case "obtain_token":
 			sendProgress(publish, taskID, 90, "Obtaining session token…", "running")
 			tokenInfo, err := sess.getTokenInfo(ctx, stepContext.callbackUrl, stepContext.prepareResult)
@@ -914,7 +981,7 @@ executor_loop:
 				return nil, err
 			}
 			stepContext.tokenInfo = tokenInfo
-			e.step = "done"
+			step = "done"
 		default:
 			break executor_loop
 		}
