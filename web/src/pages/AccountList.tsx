@@ -7,13 +7,14 @@ import {
   Typography,
   message,
   Dropdown,
+  Popconfirm,
 } from 'antd'
-import { DownloadOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, UploadOutlined, SafetyOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { MenuProps } from 'antd'
 import { useTranslation } from 'react-i18next'
 import StatusTag from '../components/StatusTag'
-import { getAccounts, exportAccounts, type Account } from '../api/accounts'
+import { getAccounts, exportAccounts, checkAccount, deleteAccount, type Account } from '../api/accounts'
 import { getTemplatesForUpload, pushAccountToTemplate, type PushTemplate } from '../api/pushTemplates'
 
 const { Title } = Typography
@@ -25,6 +26,8 @@ export default function AccountList() {
   const [status, setStatus] = useState('')
   const [templatesByType, setTemplatesByType] = useState<Record<string, PushTemplate[]>>({})
   const [pushingKey, setPushingKey] = useState<string | null>(null)
+  const [checkingId, setCheckingId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const { t } = useTranslation()
 
   const TYPE_OPTIONS = [
@@ -104,6 +107,42 @@ export default function AccountList() {
     [t],
   )
 
+  const handleCheckAccount = useCallback(
+    async (account: Account) => {
+      setCheckingId(account.id)
+      try {
+        const { data } = await checkAccount(account.id)
+        if (!data.supported) {
+          message.warning(t('accounts.checkUnsupported'))
+          return
+        }
+        if (data.valid) {
+          message.success(t('accounts.checkSuccess'))
+          return
+        }
+        message.error(t('accounts.checkInvalid', { message: data.message }))
+      } catch {
+        message.error(t('accounts.checkFailed'))
+      } finally {
+        setCheckingId(null)
+      }
+    },
+    [t],
+  )
+
+  async function handleDeleteAccount(id: number) {
+    setDeletingId(id)
+    try {
+      await deleteAccount(id)
+      message.success(t('accounts.deleted'))
+      await fetchAccounts()
+    } catch {
+      message.error(t('accounts.failedToDelete'))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const columns: ColumnsType<Account> = [
     { title: t('common.email'), dataIndex: 'email', key: 'email' },
     { title: t('common.type'), dataIndex: 'type', key: 'type' },
@@ -132,21 +171,41 @@ export default function AccountList() {
         }))
 
         return (
-          <Dropdown
-            menu={{
-              items: menuItems.length > 0
-                ? menuItems
-                : [{ key: 'none', label: t('accounts.noTemplates'), disabled: true }],
-            }}
-            trigger={['click']}
-            onOpenChange={(open) => {
-              if (open) fetchTemplatesForType(record.type)
-            }}
-          >
-            <Button size="small" icon={<UploadOutlined />}>
-              {t('accounts.upload')}
+          <Space>
+            <Button
+              size="small"
+              icon={<SafetyOutlined />}
+              loading={checkingId === record.id}
+              onClick={() => handleCheckAccount(record)}
+            >
+              {t('accounts.check')}
             </Button>
-          </Dropdown>
+            <Dropdown
+              menu={{
+                items: menuItems.length > 0
+                  ? menuItems
+                  : [{ key: 'none', label: t('accounts.noTemplates'), disabled: true }],
+              }}
+              trigger={['click']}
+              onOpenChange={(open) => {
+                if (open) fetchTemplatesForType(record.type)
+              }}
+            >
+              <Button size="small" icon={<UploadOutlined />}>
+                {t('accounts.upload')}
+              </Button>
+            </Dropdown>
+            <Popconfirm
+              title={t('accounts.deleteConfirm')}
+              onConfirm={() => handleDeleteAccount(record.id)}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+            >
+              <Button size="small" danger loading={deletingId === record.id}>
+                {t('common.delete')}
+              </Button>
+            </Popconfirm>
+          </Space>
         )
       },
     },
@@ -196,4 +255,3 @@ export default function AccountList() {
     </div>
   )
 }
-

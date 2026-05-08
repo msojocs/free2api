@@ -89,6 +89,7 @@ func SetupRouter(
 			accounts.GET("", accountH.List)
 			accounts.DELETE("/:id", accountH.Delete)
 			accounts.GET("/export", accountH.Export)
+			accounts.POST("/:id/check", accountH.Check)
 		}
 
 		proxies := api.Group("/proxies")

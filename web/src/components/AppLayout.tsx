@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Layout, Menu, Button, Typography, theme, Dropdown, Avatar, Space } from 'antd'
 import {
   DashboardOutlined,
@@ -49,12 +49,37 @@ export default function AppLayout() {
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
     { key: '/tasks', icon: <UnorderedListOutlined />, label: t('nav.tasks') },
-    { key: '/accounts', icon: <UserOutlined />, label: t('nav.accounts') },
+    {
+      key: '/accounts',
+      icon: <UserOutlined />,
+      label: t('nav.accounts'),
+      children: [
+        { key: '/accounts/chatgpt', label: t('nav.accountsChatgpt') },
+        { key: '/accounts/cursor', label: t('nav.accountsCursor') },
+        { key: '/accounts/all', label: t('nav.accountsAll') },
+      ],
+    },
     { key: '/proxies', icon: <GlobalOutlined />, label: t('nav.proxies') },
     { key: '/temp-mail-providers', icon: <InboxOutlined />, label: t('nav.tempMailProviders') },
     { key: '/push-templates', icon: <SendOutlined />, label: t('nav.pushTemplates') },
     { key: '/settings', icon: <SettingOutlined />, label: t('nav.settings') },
   ]
+
+  const selectedMenuKey = useMemo(() => {
+    if (location.pathname.startsWith('/accounts')) {
+      if (location.pathname === '/accounts') return '/accounts/chatgpt'
+      return location.pathname
+    }
+    return location.pathname
+  }, [location.pathname])
+
+  const [openMenuKeys, setOpenMenuKeys] = useState<string[]>([])
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/accounts')) {
+      setOpenMenuKeys((prev) => (prev.includes('/accounts') ? prev : ['/accounts']))
+    }
+  }, [location.pathname])
 
   const langMenuItems = [
     {
@@ -131,7 +156,9 @@ export default function AppLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedMenuKey]}
+          openKeys={openMenuKeys}
+          onOpenChange={(keys) => setOpenMenuKeys(keys as string[])}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
           style={{ flex: 1, borderRight: 0 }}

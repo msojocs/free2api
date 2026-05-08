@@ -111,7 +111,7 @@ func (c *CodexClient) buildHeaders() http.Header {
 	headers.Set("sec-fetch-site", "none")
 	headers.Set("sec-fetch-mode", "no-cors")
 	headers.Set("sec-fetch-dest", "empty")
-	headers.Set("accept-encoding", "gzip, deflate, br, zstd")
+	// headers.Set("accept-encoding", "gzip, deflate, br, zstd")
 	headers.Set("accept-language", "zh-CN")
 	headers.Set("priority", "u=4, i")
 	return headers

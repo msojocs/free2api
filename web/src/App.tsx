@@ -7,12 +7,14 @@ import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import TaskList from './pages/TaskList'
-import AccountList from './pages/AccountList'
 import ProxyManager from './pages/ProxyManager'
 import PushTemplateManager from './pages/PushTemplateManager'
 import SystemSettings from './pages/SystemSettings'
 import TempMailProviderManager from './pages/TempMailProviderManager'
 import ChangePassword from './pages/ChangePassword'
+import AllAccountList from './pages/accounts/AllAccountList'
+import ChatGPTAccountList from './pages/accounts/ChatGPTAccountList'
+import CursorAccountList from './pages/accounts/CursorAccountList'
 import { useAuthStore } from './store/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -41,7 +43,10 @@ export default function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="tasks" element={<TaskList />} />
-              <Route path="accounts" element={<AccountList />} />
+              <Route path="accounts" element={<Navigate to="/accounts/chatgpt" replace />} />
+              <Route path="accounts/all" element={<AllAccountList />} />
+              <Route path="accounts/chatgpt" element={<ChatGPTAccountList />} />
+              <Route path="accounts/cursor" element={<CursorAccountList />} />
               <Route path="proxies" element={<ProxyManager />} />
               <Route path="settings" element={<SystemSettings />} />
               <Route path="change-password" element={<ChangePassword />} />

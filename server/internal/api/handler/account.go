@@ -58,3 +58,19 @@ func (h *AccountHandler) Export(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=accounts.csv")
 	c.String(http.StatusOK, csv)
 }
+
+func (h *AccountHandler) Check(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Fail(400, "invalid id"))
+		return
+	}
+
+	result, err := h.svc.Check(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Fail(500, err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, OK(result))
+}
