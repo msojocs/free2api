@@ -38,6 +38,7 @@ type WizardValues = {
   proxy_group_id?: number | ''
   temp_mail_provider_id?: number | ''
   concurrency?: number
+  interval_seconds?: number
   scheduled_at?: dayjs.Dayjs
 }
 
@@ -116,6 +117,7 @@ export default function TaskList() {
         const cfg: Record<string, unknown> = {
           proxy_group_id: merged.proxy_group_id,
           concurrency: merged.concurrency ?? 5,
+          interval_seconds: merged.interval_seconds ?? 5,
           scheduled_at: merged.scheduled_at?.toISOString(),
         }
         // Include temp mail provider ID if selected so the backend can resolve it.
@@ -378,6 +380,14 @@ export default function TaskList() {
                 initialValue={5}
               >
                 <InputNumber min={1} max={100} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item
+                name="interval_seconds"
+                label={t('tasks.intervalSeconds')}
+                rules={[{ required: true }]}
+                initialValue={5}
+              >
+                <InputNumber min={0} max={3600} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="scheduled_at" label={t('tasks.scheduledTime')}>
                 <DatePicker showTime style={{ width: '100%' }} />

@@ -98,6 +98,7 @@ const zh = {
     selectTempMailProvider: '选择服务（可选）',
     noTempMailProvider: '不使用（直接配置）',
     concurrency: '并发数',
+    intervalSeconds: '间隔时间（秒）',
     scheduledTime: '计划执行时间（可选）',
     stepPlatform: '平台 & 名称',
     stepResources: '资源配置',

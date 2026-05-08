@@ -98,6 +98,7 @@ const en = {
     selectTempMailProvider: 'Select provider (optional)',
     noTempMailProvider: 'None (use direct config)',
     concurrency: 'Concurrency',
+    intervalSeconds: 'Interval (seconds)',
     scheduledTime: 'Scheduled Time (optional)',
     stepPlatform: 'Platform & Name',
     stepResources: 'Resources',

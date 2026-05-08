@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/msojocs/free2api/server/internal/core"
 	"github.com/msojocs/free2api/server/internal/executor"
@@ -273,6 +274,10 @@ func (s *TaskService) dispatchJobs(task model.TaskBatch) {
 	if concurrency <= 0 {
 		concurrency = 1
 	}
+	intervalSeconds := taskConfigInt(map[string]interface{}(task.Config), "interval_seconds", 5)
+	if intervalSeconds < 0 {
+		intervalSeconds = 0
+	}
 	sem := make(chan struct{}, concurrency)
 
 	var wg sync.WaitGroup
@@ -377,6 +382,9 @@ func (s *TaskService) dispatchJobs(task model.TaskBatch) {
 				batchUpdate := progressAgg.OnJobDone(taskID, uint(jobID), err == nil)
 				s.appendProgressLog(taskID, batchUpdate)
 				publish(batchUpdate)
+				if intervalSeconds > 0 {
+					time.Sleep(time.Second * time.Duration(intervalSeconds))
+				}
 			},
 		})
 	}
