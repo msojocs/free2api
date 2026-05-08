@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Key } from 'react'
 import {
   App as AntdApp,
   Table,
@@ -44,6 +44,8 @@ type WizardValues = {
 export default function TaskList() {
   const [tasks, setTasks] = useState<TaskBatch[]>([])
   const [loading, setLoading] = useState(false)
+  const [batchDeleting, setBatchDeleting] = useState(false)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
   const [wizardOpen, setWizardOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [wizardValues, setWizardValues] = useState<WizardValues>({})
@@ -167,6 +169,39 @@ export default function TaskList() {
     }
   }
 
+  async function handleBatchDelete() {
+    if (selectedRowKeys.length === 0) {
+      message.warning(t('tasks.batchDeleteSelectFirst'))
+      return
+    }
+
+    setBatchDeleting(true)
+    let successCount = 0
+    try {
+      const ids = selectedRowKeys.map((key) => Number(key)).filter((id) => Number.isFinite(id))
+      for (const id of ids) {
+        try {
+          await deleteTask(id)
+          successCount += 1
+        } catch {
+          // continue deleting remaining tasks
+        }
+      }
+      const failedCount = ids.length - successCount
+      message.info(
+        t('tasks.batchDeleteSummary', {
+          total: ids.length,
+          success: successCount,
+          failed: failedCount,
+        }),
+      )
+      setSelectedRowKeys([])
+      await fetchTasks()
+    } finally {
+      setBatchDeleting(false)
+    }
+  }
+
   const columns: TableProps<TaskBatch>['columns'] = [
     { title: t('common.name'), dataIndex: 'name', key: 'name' },
     { title: t('common.type'), dataIndex: 'type', key: 'type' },
@@ -237,6 +272,16 @@ export default function TaskList() {
           {t('tasks.title')}
         </Title>
         <Space>
+          <Popconfirm
+            title={t('tasks.batchDeleteConfirm')}
+            onConfirm={() => void handleBatchDelete()}
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
+          >
+            <Button danger disabled={selectedRowKeys.length === 0} loading={batchDeleting}>
+              {t('tasks.batchDelete')}
+            </Button>
+          </Popconfirm>
           <Button icon={<ReloadOutlined />} onClick={fetchTasks} loading={loading}>
             {t('tasks.refreshList')}
           </Button>
@@ -250,6 +295,10 @@ export default function TaskList() {
         columns={columns}
         dataSource={tasks}
         rowKey="id"
+        rowSelection={{
+          selectedRowKeys,
+          onChange: (keys) => setSelectedRowKeys(keys),
+        }}
         loading={loading}
         pagination={{ pageSize: 10 }}
       />
@@ -351,4 +400,3 @@ export default function TaskList() {
     </div>
   )
 }
-
