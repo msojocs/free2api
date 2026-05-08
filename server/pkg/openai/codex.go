@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ type CodexClient struct {
 	accessToken  string
 	refreshToken string
 	serverURL    string
+	oauthServer  string
 	client       *http.Client
 }
 
@@ -22,6 +24,7 @@ type CodexConfig struct {
 	AccessToken  string
 	RefreshToken string
 	ServerURL    string
+	OAuthServer  string
 }
 
 type CodexUsageResponse struct {
@@ -58,6 +61,15 @@ type CodexAccountCheckResponse struct {
 	AccountOrdering  []string       `json:"account_ordering"`
 }
 
+type CodexRefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	IdToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+	TokenType    string `json:"token_type"`
+}
+
 type CodexAccount struct {
 	Id                string  `json:"id"`
 	AccountUserId     string  `json:"account_user_id"`
@@ -71,6 +83,9 @@ func NewCodexClient(config CodexConfig) (*CodexClient, error) {
 	if config.ServerURL == "" {
 		config.ServerURL = "https://chatgpt.com/backend-api"
 	}
+	if config.OAuthServer == "" {
+		config.OAuthServer = "https://auth.openai.com"
+	}
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		return nil, err
@@ -80,6 +95,7 @@ func NewCodexClient(config CodexConfig) (*CodexClient, error) {
 		accessToken:  config.AccessToken,
 		refreshToken: config.RefreshToken,
 		serverURL:    config.ServerURL,
+		oauthServer:  config.OAuthServer,
 		client:       &http.Client{Jar: jar},
 	}, nil
 }
@@ -151,7 +167,47 @@ func (c *CodexClient) CheckAccount() (*CodexAccountCheckResponse, error) {
 	return &accountResp, nil
 }
 
-func (c *CodexClient) RefreshToken() error {
-	// TODO: Implement token refresh logic using the refresh token.
-	return nil
+func (c *CodexClient) RefreshToken() (*CodexRefreshTokenResponse, error) {
+
+	uri := "https://auth.openai.com/oauth/token"
+	headers := map[string]string{
+		"content-type": "application/json",
+		"accept":       "*/*",
+		"user-agent":   "Codex Desktop/0.118.0-alpha.2 (Windows 10.0.26200; x86_64) unknown (Codex Desktop; 26.325.31654)",
+		"originator":   "Codex Desktop",
+	}
+
+	body := map[string]string{
+		"client_id":     "app_EMoamEEZ73f0CkXaXp7hrann",
+		"grant_type":    "refresh_token",
+		"refresh_token": c.refreshToken,
+	}
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var refreshResp CodexRefreshTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&refreshResp); err != nil {
+		return nil, err
+	}
+	c.accessToken = refreshResp.AccessToken
+	c.refreshToken = refreshResp.RefreshToken
+
+	return &refreshResp, nil
 }
