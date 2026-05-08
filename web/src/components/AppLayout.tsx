@@ -11,6 +11,8 @@ import {
   SettingOutlined,
   LockOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +27,10 @@ export default function AppLayout() {
   const { user, logout } = useAuthStore()
   const { token: designToken } = theme.useToken()
   const { t, i18n } = useTranslation()
+  const siderWidth = 200
+  const collapsedSiderWidth = 80
+  const [collapsed, setCollapsed] = useState(false)
+  const [broken, setBroken] = useState(false)
 
   function handleLogout() {
     logout()
@@ -128,10 +134,23 @@ export default function AppLayout() {
     }
   }
 
+  const contentMarginLeft = broken ? 0 : (collapsed ? collapsedSiderWidth : siderWidth)
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         theme="dark"
+        collapsible
+        trigger={null}
+        width={siderWidth}
+        collapsedWidth={broken ? 0 : collapsedSiderWidth}
+        collapsed={collapsed}
+        breakpoint="lg"
+        onBreakpoint={(isBroken) => {
+          setBroken(isBroken)
+          setCollapsed(isBroken)
+        }}
+        onCollapse={(value) => setCollapsed(value)}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -140,6 +159,7 @@ export default function AppLayout() {
           left: 0,
           top: 0,
           bottom: 0,
+          zIndex: 1000,
         }}
       >
         <div
@@ -150,7 +170,7 @@ export default function AppLayout() {
           }}
         >
           <Text strong style={{ color: '#fff', fontSize: 18 }}>
-            Free2API
+            {collapsed && !broken ? 'F2A' : 'Free2API'}
           </Text>
         </div>
         <Menu
@@ -160,11 +180,16 @@ export default function AppLayout() {
           openKeys={openMenuKeys}
           onOpenChange={(keys) => setOpenMenuKeys(keys as string[])}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => {
+            navigate(key)
+            if (broken) {
+              setCollapsed(true)
+            }
+          }}
           style={{ flex: 1, borderRight: 0 }}
         />
       </Sider>
-      <Layout style={{ marginLeft: 200 }}>
+      <Layout style={{ marginLeft: contentMarginLeft, transition: 'margin-left 0.2s' }}>
         <Header
           style={{
             background: designToken.colorBgContainer,
@@ -172,9 +197,15 @@ export default function AppLayout() {
             borderBottom: `1px solid ${designToken.colorBorderSecondary}`,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
           }}
         >
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed((prev) => !prev)}
+            aria-label="toggle sidebar"
+          />
           <Space size={8}>
             <Dropdown menu={{ items: langMenuItems, selectedKeys: [i18n.language.startsWith('zh') ? 'zh' : 'en'] }} trigger={['click']}>
               <Button icon={<TranslationOutlined />} type="text">
