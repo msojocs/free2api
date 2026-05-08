@@ -124,3 +124,7 @@ npm run dev
 Thanks to the following project for inspiration:
 
 https://github.com/zc-zhangchen/any-auto-register
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

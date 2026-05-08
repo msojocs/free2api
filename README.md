@@ -123,3 +123,7 @@ npm run dev
 感谢以下项目提供的思路：
 
 https://github.com/zc-zhangchen/any-auto-register
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)。
